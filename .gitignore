@@ -1,0 +1,51 @@
+# --- macOS AppleDouble (Crucial-4T is exFAT) ---
+._*
+.DS_Store
+.Spotlight-V100
+.Trashes
+$RECYCLE.BIN/
+
+# --- Big binary data (do NOT push) ---
+
+# Ollama models (~7 GB)
+ollama/models/
+ollama/blobs/
+ollama/manifests/
+
+# MinerU models (~5 GB)
+mineru/models/
+mineru/cache/
+
+# RAG-Anything runtime
+rag-anything/.venv/
+rag-anything/storage/
+rag-anything/output/
+rag-anything/input/
+rag-anything/logs/
+rag-anything/.env
+
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Editor / IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Logs / pid / tmp ---
+*.log
+*.pid
+*.tmp
+*.bak
+
+# --- Node (if ever added) ---
+node_modules/
+.pnpm-store/
