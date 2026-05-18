@@ -74,9 +74,9 @@ What it does (idempotent):
 | 🧰 | `~/rag-anything/scripts/` | Server lifecycle + `ingest.py` |
 | 🧰 | `~/rag-anything/.env` | Config (paths, model names, ports) |
 | 🧰 | `~/rag-anything/logs/` | Server stdout/err + PID file |
-| 💾 | `/Volumes/Crucial-4T/rag-anything/storage/` | KG + vectors (JSON) |
-| 💾 | `/Volumes/Crucial-4T/rag-anything/output/` | MinerU parsed artifacts |
-| 💾 | `/Volumes/Crucial-4T/rag-anything/input/` | Drop-zone for batch ingest |
+| 💾 | `~/rag-anything/storage/` | KG + vectors (JSON) |
+| 💾 | `~/rag-anything/output/` | MinerU parsed artifacts |
+| 💾 | `~/rag-anything/input/` | Drop-zone for batch ingest |
 | 🎛️ | `~/.claude/skills/lightrag-*/` | 6 LightRAG slash commands |
 | 🎛️ | `~/.claude/skills/raganything-upload/` | Multimodal ingest slash command |
 
@@ -120,8 +120,8 @@ curl -s -X POST http://localhost:9621/query \
 
 ```ini
 # Storage (LightRAG)
-WORKING_DIR=/Volumes/Crucial-4T/rag-anything/storage
-INPUT_DIR=/Volumes/Crucial-4T/rag-anything/input
+WORKING_DIR=~/rag-anything/storage
+INPUT_DIR=~/rag-anything/input
 
 # Server
 HOST=0.0.0.0
@@ -151,7 +151,7 @@ MINERU_DEVICE=mps
 MINERU_BACKEND=pipeline
 PARSER=mineru
 PARSE_METHOD=auto
-OUTPUT_DIR=/Volumes/Crucial-4T/rag-anything/output
+OUTPUT_DIR=~/rag-anything/output
 ```
 
 ## 🧪 Query modes
@@ -169,7 +169,6 @@ OUTPUT_DIR=/Volumes/Crucial-4T/rag-anything/output
 - **The server holds storage files open.** Run `/lightrag-stop` (or the skill auto-handles it) before multimodal ingest, then restart so the KG reloads with new entities.
 - **Vector dim is locked.** Switching `EMBEDDING_MODEL` means wiping `storage/` — old vectors are incompatible with the new model.
 - **First Ollama call after a stop ≈ 10–30 s warmup** while the model loads to GPU. Subsequent calls are fast.
-- **Crucial-4T must be mounted** before starting the server (storage path is on it).
 - **`ollama` Python package is required by LightRAG's Ollama binding** — listed in `requirements.txt`. If `ImportError: No module named 'ollama'`, run `uv pip install --python ~/rag-anything/.venv/bin/python ollama`.
 
 ## 📚 Links

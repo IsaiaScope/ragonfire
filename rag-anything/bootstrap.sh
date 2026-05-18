@@ -1,17 +1,25 @@
 #!/usr/bin/env bash
 # RagOnFire bootstrap for macOS (Apple Silicon)
+#
 # One-shot installer:
 #   - Ollama (brew) + qwen2.5vl:7b + bge-m3
-#   - Python 3.12 venv at ~/rag-anything/.venv (internal SSD; exFAT breaks venvs)
+#   - Python 3.12 venv at ~/rag-anything/.venv (POSIX FS required)
 #   - raganything[all] + lightrag-hku[api] + mineru + ollama python client
-#   - 7 Claude Code skills copied to ~/.claude/skills/
-#   - Runtime data dirs on /Volumes/Crucial-4T/rag-anything/
+#   - Skills copied to one or more AI agent skill dirs
+#   - Runtime data dirs at ~/rag-anything/{storage,output,input}
+#
+# Usage:
+#   ./bootstrap.sh                                   # skills → claude-code
+#   ./bootstrap.sh --agent codex                     # skills → codex
+#   ./bootstrap.sh --agent claude-code --agent codex # skills → both
+#   ./bootstrap.sh --agent all                       # skills → both
+#   ./bootstrap.sh --skip-skills                     # do not install skills
 set -euo pipefail
 
-REPO_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"   # ragonfire/rag-anything
-RUNTIME_DIR="$HOME/rag-anything"
-DATA_DIR="/Volumes/Crucial-4T/rag-anything"
-SKILLS_TARGET="$HOME/.claude/skills"
+REPO_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"          # ragonfire/rag-anything
+REPO_ROOT="$( cd "$REPO_DIR/.." && pwd )"                              # ragonfire/
+RUNTIME_DIR="${RAGONFIRE_RUNTIME:-$HOME/rag-anything}"
+DATA_DIR="${RAGONFIRE_DATA:-$RUNTIME_DIR}"
 PYTHON_VERSION="3.12"
 LLM_MODEL="qwen2.5vl:7b"
 EMBED_MODEL="bge-m3"
@@ -19,11 +27,26 @@ EMBED_MODEL="bge-m3"
 log() { printf "\033[1;36m[bootstrap]\033[0m %s\n" "$*"; }
 err() { printf "\033[1;31m[error]\033[0m %s\n" "$*" >&2; exit 1; }
 
+# Parse args (forward --agent flags to install-skills.sh)
+SKILL_ARGS=()
+SKIP_SKILLS=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --agent)        SKILL_ARGS+=(--agent "$2"); shift 2 ;;
+    --agent=*)      SKILL_ARGS+=("--agent" "${1#*=}"); shift ;;
+    --skip-skills)  SKIP_SKILLS=1; shift ;;
+    -h|--help)
+      awk 'NR==1 { next } /^[^#]/ { exit } { sub(/^# ?/, ""); print }' "$0"
+      exit 0
+      ;;
+    *) err "unknown arg: $1 (try --help)" ;;
+  esac
+done
+
 # 1. Prereq checks
 command -v brew >/dev/null || err "Homebrew required. Install: https://brew.sh"
 command -v uv >/dev/null   || err "uv required. Install: curl -LsSf https://astral.sh/uv/install.sh | sh"
 
-[ -d "/Volumes/Crucial-4T" ] || err "Crucial-4T not mounted. Plug it in before running bootstrap."
 
 # 2. Runtime dirs
 log "Preparing runtime dirs"
@@ -91,15 +114,13 @@ except Exception as e:
     print(f'MinerU import note: {e}')
 " || log "MinerU first-import skipped (will download on first ingest)"
 
-# 9. Install Claude Code skills
-log "Installing Claude Code skills to $SKILLS_TARGET"
-mkdir -p "$SKILLS_TARGET"
-for skill_dir in "$REPO_DIR/skills/"*/; do
-  name=$(basename "$skill_dir")
-  mkdir -p "$SKILLS_TARGET/$name"
-  cp "$skill_dir/SKILL.md" "$SKILLS_TARGET/$name/SKILL.md"
-  log "  installed skill: $name"
-done
+# 9. Install skills (delegates to scripts/install-skills.sh — agent-agnostic)
+if [ "$SKIP_SKILLS" -eq 1 ]; then
+  log "Skipping skills install (--skip-skills)"
+else
+  log "Installing skills via scripts/install-skills.sh ${SKILL_ARGS[*]:-(default: claude-code)}"
+  "$REPO_ROOT/scripts/install-skills.sh" "${SKILL_ARGS[@]}"
+fi
 
 # 10. Verify
 log "Verifying lightrag-server installed"
@@ -112,7 +133,6 @@ cat <<EOF
   Repo (source):  $REPO_DIR
   Runtime:        $RUNTIME_DIR
   Data:           $DATA_DIR
-  Skills:         $SKILLS_TARGET
 
 Next steps:
   /lightrag-start                    # boot server

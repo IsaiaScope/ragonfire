@@ -14,11 +14,11 @@ Process a multimodal document through RAG-Anything: MinerU parses structure (tex
 
 ## Configuration
 
-- **Project:** `/Users/isaia/rag-anything` (code), `/Volumes/Crucial-4T/rag-anything` (storage/output)
-- **Python:** `/Users/isaia/rag-anything/.venv/bin/python` (Python 3.12 venv)
-- **Script:** `/Users/isaia/rag-anything/scripts/ingest.py`
-- **Storage:** `/Volumes/Crucial-4T/rag-anything/storage` (shared with LightRAG server)
-- **Output:** `/Volumes/Crucial-4T/rag-anything/output` (MinerU parsed artifacts: markdown, images, JSON)
+- **Project:** `~/rag-anything` (code), `~/rag-anything` (storage/output)
+- **Python:** `~/rag-anything/.venv/bin/python` (Python 3.12 venv)
+- **Script:** `~/rag-anything/scripts/ingest.py`
+- **Storage:** `~/rag-anything/storage` (shared with LightRAG server)
+- **Output:** `~/rag-anything/output` (MinerU parsed artifacts: markdown, images, JSON)
 - **Models:** qwen2.5-vl 7B (LLM + vision) + bge-m3 (embed), both via Ollama
 - **Parser:** MinerU on MPS (Apple Silicon GPU)
 - **No API keys needed** — fully local
@@ -35,15 +35,15 @@ The LightRAG server holds storage files open. Stop it before ingest to prevent c
 
 ```bash
 # 1. Stop server (releases storage lock)
-/Users/isaia/rag-anything/scripts/server-stop.sh
+~/rag-anything/scripts/server-stop.sh
 
 # 2. Run multimodal ingest
-/Users/isaia/rag-anything/.venv/bin/python \
-  /Users/isaia/rag-anything/scripts/ingest.py \
+~/rag-anything/.venv/bin/python \
+  ~/rag-anything/scripts/ingest.py \
   "/path/to/document.pdf"
 
 # 3. Restart server (reloads KG from disk)
-/Users/isaia/rag-anything/scripts/server-start.sh
+~/rag-anything/scripts/server-start.sh
 ```
 
 ### Process multiple documents
@@ -51,12 +51,12 @@ The LightRAG server holds storage files open. Stop it before ingest to prevent c
 Loop: stop once → ingest all → restart once.
 
 ```bash
-/Users/isaia/rag-anything/scripts/server-stop.sh
+~/rag-anything/scripts/server-stop.sh
 for f in /path/to/docs/*.pdf; do
-  /Users/isaia/rag-anything/.venv/bin/python \
-    /Users/isaia/rag-anything/scripts/ingest.py "$f"
+  ~/rag-anything/.venv/bin/python \
+    ~/rag-anything/scripts/ingest.py "$f"
 done
-/Users/isaia/rag-anything/scripts/server-start.sh
+~/rag-anything/scripts/server-start.sh
 ```
 
 ## What happens under the hood
@@ -65,10 +65,10 @@ done
 2. **Text / tables / equations** → structured text → qwen2.5-vl (Ollama) for entity extraction.
 3. **Images / charts** → base64 → qwen2.5-vl vision endpoint (Ollama) for visual interpretation → entities extracted.
 4. **bge-m3** (Ollama) embeds all chunks (1024-dim).
-5. **Knowledge graph + vector DB** written to `/Volumes/Crucial-4T/rag-anything/storage/`.
-6. **MinerU artifacts** (parsed markdown, extracted images, layout JSON) saved to `/Volumes/Crucial-4T/rag-anything/output/<filename>/`.
+5. **Knowledge graph + vector DB** written to `~/rag-anything/storage/`.
+6. **MinerU artifacts** (parsed markdown, extracted images, layout JSON) saved to `~/rag-anything/output/<filename>/`.
 
-## Timing (rough, on M4 32GB)
+## Timing (rough, Apple Silicon)
 
 - 1-page text PDF: ~30 sec
 - 10-page PDF with tables + a few images: 3-8 min
@@ -89,14 +89,13 @@ User: "Process this research paper through RAG-Anything" (provides path)
 
 ## Error Handling
 
-- **`ModuleNotFoundError: raganything`** — venv not installed. Run `/Users/isaia/rag-anything/bootstrap.sh`.
+- **`ModuleNotFoundError: raganything`** — venv not installed. Run `~/rag-anything/bootstrap.sh`.
 - **`Connection refused: 11434`** — Ollama down. `brew services start ollama`, then retry.
 - **MinerU model download (first run)** — multi-GB download to `~/.mineru/`. Normal. Subsequent runs use cache.
 - **MPS out of memory** — set `MINERU_DEVICE=cpu` in `.env` (slower but works). Or close other GPU-heavy apps.
 - **Storage lock errors** — server still running. Re-run `server-stop.sh` and confirm with `server-status.sh` before ingesting.
-- **Crucial-4T not mounted** — drive must be plugged in. Storage path will not resolve.
 - **Vector dim mismatch** — `.env` says `EMBEDDING_DIM=1024` (bge-m3). If you swap embedding model, update dim AND wipe `storage/` (vectors incompatible across models).
 
 ## Free-tier sanity
 
-Zero API keys, zero per-token cost. Everything runs locally on the M4. Ollama models live in `~/.ollama/models/`. MinerU models in `~/.mineru/`. KG + vectors in `/Volumes/Crucial-4T/rag-anything/storage/`.
+Zero API keys, zero per-token cost. Everything runs locally on the GPU. Ollama models live in `~/.ollama/models/`. MinerU models in `~/.mineru/`. KG + vectors in `~/rag-anything/storage/`.

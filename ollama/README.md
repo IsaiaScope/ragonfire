@@ -59,19 +59,19 @@ By default Ollama stores models at `~/.ollama/models/`. To move them onto an ext
 brew services stop ollama
 
 # Move existing blobs
-mkdir -p /Volumes/Crucial-4T/models/ollama
-rsync -ah --remove-source-files ~/.ollama/models/ /Volumes/Crucial-4T/models/ollama/
+mkdir -p /path/to/external/drive/models/ollama
+rsync -ah --remove-source-files ~/.ollama/models/ /path/to/external/drive/models/ollama/
 
 # Tell launchd + shell about the new location
-launchctl setenv OLLAMA_MODELS /Volumes/Crucial-4T/models/ollama
-echo 'export OLLAMA_MODELS=/Volumes/Crucial-4T/models/ollama' >> ~/.zshrc
+launchctl setenv OLLAMA_MODELS /path/to/external/drive/models/ollama
+echo 'export OLLAMA_MODELS=/path/to/external/drive/models/ollama' >> ~/.zshrc
 
 # Restart
 brew services start ollama
 ollama list   # should still show qwen2.5vl:7b + bge-m3
 ```
 
-⚠️ **Caveat:** if Crucial-4T is unmounted at boot, Ollama starts with an empty model dir. Plug the drive in before any `/lightrag-start`.
+⚠️ **Caveat:** if the external drive is unmounted at boot, Ollama starts with an empty model dir. Mount it before launching the server.
 
 ## 🩺 Health checks
 
@@ -106,7 +106,7 @@ Env vars Ollama reads at start (set via `launchctl setenv` for the daemon, or `e
 | `OLLAMA_MAX_LOADED_MODELS` | Models held in VRAM at once | `1` |
 | `OLLAMA_FLASH_ATTENTION` | Faster attention kernels (Metal) | `0` |
 
-For RagOnFire we keep defaults — they fit comfortably on a 32 GB M4.
+For RagOnFire we keep defaults — they fit comfortably on 16 GB+ Apple Silicon Macs.
 
 ## 📚 Links
 
