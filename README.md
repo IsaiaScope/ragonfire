@@ -60,11 +60,24 @@ Zero API keys. Zero per-token cost. Zero data leaving your machine.
 
 ## 🚀 Quickstart
 
+### Skills only (fast, no runtime install)
+
+If you already have Ollama + the venv set up elsewhere, or just want the Claude Code slash commands:
+
+```bash
+git clone https://github.com/IsaiaScope/ragonfire.git
+cd ragonfire
+./scripts/install-skills.sh        # copies SKILL.md files → ~/.claude/skills/
+```
+
+### Full install (Ollama + models + venv + skills)
+
 ```bash
 # 1. Clone
-git clone <repo-url> ragonfire && cd ragonfire
+git clone https://github.com/IsaiaScope/ragonfire.git
+cd ragonfire
 
-# 2. Install everything (Ollama, models, Python venv, MinerU)
+# 2. Install everything (Ollama, models, Python venv, MinerU, skills)
 ./rag-anything/bootstrap.sh
 
 # 3. Start the server (lazy — only when you need it)
