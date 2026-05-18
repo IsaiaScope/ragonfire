@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 # RagOnFire — skills-only installer
 #
-# Copies every SKILL.md from rag-anything/skills/ into ~/.claude/skills/<name>/.
-# Use this when you only want the slash commands and have already set up
-# Ollama + venv elsewhere (or are not running the pipeline locally).
+# Copies every SKILL.md from rag-anything/skills/ into one or more AI agent
+# skill directories.
+#
+# Usage:
+#   ./install-skills.sh                                # default: claude-code
+#   ./install-skills.sh --agent codex
+#   ./install-skills.sh --agent claude-code --agent codex
+#   ./install-skills.sh --agent all                    # both agents
 #
 # For a full install (Ollama, models, Python venv, skills), use:
 #   ./rag-anything/bootstrap.sh
@@ -11,28 +16,85 @@ set -euo pipefail
 
 REPO_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 SRC="$REPO_DIR/rag-anything/skills"
-DEST="$HOME/.claude/skills"
 
 log() { printf "\033[1;36m[install-skills]\033[0m %s\n" "$*"; }
+err() { printf "\033[1;31m[error]\033[0m %s\n" "$*" >&2; exit 1; }
 
-[ -d "$SRC" ] || { echo "✗ no skills dir at $SRC"; exit 1; }
-mkdir -p "$DEST"
+agent_dir() {
+  case "$1" in
+    claude-code) echo "$HOME/.claude/skills" ;;
+    codex)       echo "$HOME/.codex/skills" ;;
+    *) err "unknown agent: $1 (expected: claude-code | codex | all)" ;;
+  esac
+}
 
-count=0
-for skill_dir in "$SRC"/*/; do
-  name=$(basename "$skill_dir")
-  [ -f "$skill_dir/SKILL.md" ] || { log "skip $name (no SKILL.md)"; continue; }
-  mkdir -p "$DEST/$name"
-  cp "$skill_dir/SKILL.md" "$DEST/$name/SKILL.md"
-  log "✓ $name"
-  count=$((count + 1))
+usage() {
+  awk 'NR==1 { next } /^[^#]/ { exit } { sub(/^# ?/, ""); print }' "$0"
+  exit "${1:-0}"
+}
+
+# Parse args
+AGENTS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --agent)    AGENTS+=("$2"); shift 2 ;;
+    --agent=*)  AGENTS+=("${1#*=}"); shift ;;
+    -h|--help)  usage 0 ;;
+    *)          err "unknown arg: $1 (try --help)" ;;
+  esac
+done
+
+# Expand "all" or default
+if [ ${#AGENTS[@]} -eq 0 ]; then
+  AGENTS=("claude-code")
+fi
+EXPANDED=()
+for a in "${AGENTS[@]}"; do
+  if [ "$a" = "all" ]; then
+    EXPANDED+=("claude-code" "codex")
+  else
+    EXPANDED+=("$a")
+  fi
+done
+AGENTS=("${EXPANDED[@]}")
+
+# Dedupe
+SEEN=""
+UNIQUE=()
+for a in "${AGENTS[@]}"; do
+  case " $SEEN " in
+    *" $a "*) ;;
+    *) UNIQUE+=("$a"); SEEN="$SEEN $a" ;;
+  esac
+done
+AGENTS=("${UNIQUE[@]}")
+
+[ -d "$SRC" ] || err "no skills dir at $SRC"
+
+# Install loop
+total=0
+for agent in "${AGENTS[@]}"; do
+  DEST=$(agent_dir "$agent")
+  mkdir -p "$DEST"
+  log "→ installing into $agent ($DEST)"
+  count=0
+  for skill_dir in "$SRC"/*/; do
+    name=$(basename "$skill_dir")
+    [ -f "$skill_dir/SKILL.md" ] || { log "  skip $name (no SKILL.md)"; continue; }
+    mkdir -p "$DEST/$name"
+    cp "$skill_dir/SKILL.md" "$DEST/$name/SKILL.md"
+    log "  ✓ $name"
+    count=$((count + 1))
+  done
+  log "  installed $count skills"
+  total=$((total + count))
 done
 
 cat <<EOF
 
-\033[1;32mInstalled $count skills to $DEST\033[0m
+\033[1;32mDone. Installed $total skill entries across ${#AGENTS[@]} agent(s): ${AGENTS[*]}\033[0m
 
-Try in Claude Code:
+Try the slash commands:
   /lightrag-start       — boot LightRAG server
   /lightrag-stop        — shut it down
   /lightrag-upload      — push a text doc (REST)
@@ -41,7 +103,7 @@ Try in Claude Code:
   /lightrag-query       — ask the KG
   /lightrag-explore     — walk the graph
 
-Note: the skills assume the runtime exists at ~/rag-anything/ with the
-LightRAG server on :9621 and Ollama on :11434. If not yet set up, run:
+Skills assume the runtime exists at ~/rag-anything/ with the LightRAG server
+on :9621 and Ollama on :11434. If not yet set up, run:
   ./rag-anything/bootstrap.sh
 EOF

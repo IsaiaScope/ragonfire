@@ -67,7 +67,15 @@ If you already have Ollama + the venv set up elsewhere, or just want the Claude 
 ```bash
 git clone https://github.com/IsaiaScope/ragonfire.git
 cd ragonfire
-./scripts/install-skills.sh        # copies SKILL.md files → ~/.claude/skills/
+
+# Default: Claude Code (~/.claude/skills/)
+./scripts/install-skills.sh
+
+# Codex (~/.codex/skills/)
+./scripts/install-skills.sh --agent codex
+
+# Both agents
+./scripts/install-skills.sh --agent all
 ```
 
 ### Full install (Ollama + models + venv + skills)
