@@ -1,0 +1,28 @@
+RagOnFire
+=========
+
+This project is released under the MIT License (see LICENSE).
+
+It integrates the following third-party open-source components, each
+retaining its own license:
+
+  - Ollama                  MIT
+    https://github.com/ollama/ollama
+
+  - LightRAG                MIT
+    https://github.com/HKUDS/LightRAG
+
+  - RAG-Anything            MIT
+    https://github.com/HKUDS/RAG-Anything
+
+  - MinerU                  AGPL-3.0
+    https://github.com/opendatalab/MinerU
+
+  - qwen2.5-vl              Apache-2.0 / Tongyi Qianwen Research License
+    https://github.com/QwenLM/Qwen2.5-VL
+
+  - bge-m3                  MIT
+    https://github.com/FlagOpen/FlagEmbedding
+
+Users of RagOnFire must comply with each upstream component's license
+when redistributing, especially MinerU which is AGPL-3.0.

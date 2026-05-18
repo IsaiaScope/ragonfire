@@ -9,13 +9,13 @@ Stop the local LightRAG server gracefully. Ollama keeps running (low overhead, u
 
 ## Configuration
 
-- **Stop script:** `/Users/isaia/rag-anything/scripts/server-stop.sh`
-- **PID file:** `/Users/isaia/rag-anything/logs/server.pid`
+- **Stop script:** `~/rag-anything/scripts/server-stop.sh`
+- **PID file:** `~/rag-anything/logs/server.pid`
 
 ## Usage
 
 ```bash
-/Users/isaia/rag-anything/scripts/server-stop.sh
+~/rag-anything/scripts/server-stop.sh
 ```
 
 The script:

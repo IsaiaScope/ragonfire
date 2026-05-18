@@ -1,6 +1,3 @@
-<p align="center">
-  <img src="docs/assets/ragonfire.png" width="80" alt="RagOnFire logo" />
-</p>
 
 <h3 align="center">RagOnFire 🔥📚</h3>
 
@@ -63,12 +60,35 @@ Zero API keys. Zero per-token cost. Zero data leaving your machine.
 
 ## 🚀 Quickstart
 
+### Skills only (fast, no runtime install)
+
+If you already have Ollama + the venv set up elsewhere, or just want the Claude Code slash commands:
+
+```bash
+git clone https://github.com/IsaiaScope/ragonfire.git
+cd ragonfire
+
+# Default: Claude Code (~/.claude/skills/)
+./scripts/install-skills.sh
+
+# Codex (~/.codex/skills/)
+./scripts/install-skills.sh --agent codex
+
+# Both agents
+./scripts/install-skills.sh --agent all
+```
+
+### Full install (Ollama + models + venv + skills)
+
 ```bash
 # 1. Clone
-git clone <repo-url> ragonfire && cd ragonfire
+git clone https://github.com/IsaiaScope/ragonfire.git
+cd ragonfire
 
-# 2. Install everything (Ollama, models, Python venv, MinerU)
-./rag-anything/bootstrap.sh
+# 2. Install everything (Ollama, models, Python venv, MinerU, skills)
+./rag-anything/bootstrap.sh                  # default: skills → Claude Code
+./rag-anything/bootstrap.sh --agent codex    # or skills → Codex
+./rag-anything/bootstrap.sh --agent all      # or both
 
 # 3. Start the server (lazy — only when you need it)
 ~/rag-anything/scripts/server-start.sh
@@ -131,25 +151,38 @@ ragonfire/
         └── raganything-upload/
 ```
 
-## 🗄️ Runtime locations
+## 🗄️ Runtime locations (defaults)
 
-| What | Where | Why |
-|------|-------|-----|
-| Code, venv, scripts | `~/rag-anything/` (internal SSD) | exFAT external drives break Python venvs |
-| KG + vectors | `/Volumes/Crucial-4T/rag-anything/storage/` | Big, slow, OK on external |
-| Parsed artifacts | `/Volumes/Crucial-4T/rag-anything/output/` | MinerU markdown + cropped images |
-| Ollama models | `~/.ollama/models/` (or moved to `/Volumes/Crucial-4T/models/ollama/`) | ~7 GB |
-| MinerU models | `~/.mineru/` (or `/Volumes/Crucial-4T/models/mineru/`) | ~5 GB, lazy-downloaded |
+All paths are configurable via `~/rag-anything/.env` after bootstrap. The defaults below assume a single root.
 
-## 🧪 Tested on
+| What | Default path | Override |
+|------|--------------|----------|
+| Code, venv, scripts | `~/rag-anything/` | `RAGONFIRE_RUNTIME` env (advanced) |
+| KG + vectors | `~/rag-anything/storage/` | `WORKING_DIR` in `.env` |
+| Parsed artifacts | `~/rag-anything/output/` | `OUTPUT_DIR` in `.env` |
+| Batch ingest drop-zone | `~/rag-anything/input/` | `INPUT_DIR` in `.env` |
+| Ollama models | `~/.ollama/models/` | `OLLAMA_MODELS` env |
+| MinerU models | `~/.mineru/` and HF / ModelScope caches | `HF_HOME`, `MODELSCOPE_CACHE` env |
+
+> **Tip:** to keep multi-GB models off your boot drive, point `OLLAMA_MODELS`, `HF_HOME`, and `MODELSCOPE_CACHE` at an external SSD. Python venvs need a POSIX filesystem (APFS/HFS+/ext4), so keep `~/rag-anything/.venv` on the internal drive even if data lives elsewhere.
+
+## 🧪 Requirements
 
 <p>
-  <img src="https://img.shields.io/badge/macOS-15.x-000000?logo=apple&logoColor=white" alt="macOS" />
-  <img src="https://img.shields.io/badge/Apple_M4-32GB-A2AAAD?logo=apple&logoColor=white" alt="M4" />
-  <img src="https://img.shields.io/badge/Python-3.12.12-3776AB?logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/macOS-13%2B-000000?logo=apple&logoColor=white" alt="macOS" />
+  <img src="https://img.shields.io/badge/Apple_Silicon-M1%2FM2%2FM3%2FM4-A2AAAD?logo=apple&logoColor=white" alt="Apple Silicon" />
+  <img src="https://img.shields.io/badge/RAM-16GB%2B-2C5BB4?logoColor=white" alt="RAM" />
+  <img src="https://img.shields.io/badge/Disk-~20GB_free-FF9F1C?logoColor=white" alt="Disk" />
+  <img src="https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white" alt="Python" />
   <img src="https://img.shields.io/badge/uv-package_manager-DE5FE9?logoColor=white" alt="uv" />
-  <img src="https://img.shields.io/badge/Homebrew-4-FBB040?logo=homebrew&logoColor=white" alt="Homebrew" />
+  <img src="https://img.shields.io/badge/Homebrew-required-FBB040?logo=homebrew&logoColor=white" alt="Homebrew" />
 </p>
+
+- **macOS 13+** on Apple Silicon (M1 or newer). MPS is used for MinerU layout and OCR models.
+- **16 GB unified memory** minimum (32 GB comfortable). The qwen2.5-vl 7B Q4 quant fits in ~6 GB; 32B variants need 32 GB+.
+- **~20 GB free disk** for Ollama models (~7 GB), MinerU models (~5 GB), Python venv (~3 GB), and parsed artifacts.
+- **Homebrew** for installing Ollama.
+- **uv** for the Python venv: `curl -LsSf https://astral.sh/uv/install.sh | sh`
 
 ## 📜 Licenses
 
