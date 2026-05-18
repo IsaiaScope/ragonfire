@@ -1,6 +1,3 @@
-<p align="center">
-  <img src="../docs/assets/rag-anything.png" width="60" alt="RAG-Anything" />
-</p>
 
 <h3 align="center">RAG-Anything + LightRAG — The Pipeline</h3>
 

@@ -1,6 +1,3 @@
-<p align="center">
-  <img src="../docs/assets/ollama.png" width="60" alt="Ollama" />
-</p>
 
 <h3 align="center">Ollama — Local Model Runtime</h3>
 

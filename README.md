@@ -1,6 +1,3 @@
-<p align="center">
-  <img src="docs/assets/ragonfire.png" width="80" alt="RagOnFire logo" />
-</p>
 
 <h3 align="center">RagOnFire 🔥📚</h3>
 

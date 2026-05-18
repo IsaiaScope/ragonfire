@@ -1,6 +1,3 @@
-<p align="center">
-  <img src="../docs/assets/mineru.png" width="60" alt="MinerU" />
-</p>
 
 <h3 align="center">MinerU — Multimodal Document Parser</h3>
 
