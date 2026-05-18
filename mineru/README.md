@@ -1,6 +1,3 @@
-<p align="center">
-  <img src="../docs/assets/mineru.png" width="60" alt="MinerU" />
-</p>
 
 <h3 align="center">MinerU — Multimodal Document Parser</h3>
 
@@ -55,7 +52,7 @@ rag = RAGAnything(config=config, ...)
 await rag.process_document_complete(file_path="paper.pdf", device="mps")
 ```
 
-Output lands in `/Volumes/Crucial-4T/rag-anything/output/<doc-name>/`:
+Output lands in `~/rag-anything/output/<doc-name>/`:
 
 ```
 output/paper/
@@ -82,13 +79,13 @@ MinerU pulls several layout / OCR / formula models on first use (~5 GB total) fr
 ## 🗄️ Relocate models to external drive (optional)
 
 ```bash
-mkdir -p /Volumes/Crucial-4T/models/{mineru,modelscope,huggingface}
+mkdir -p /path/to/external/drive/models/{mineru,modelscope,huggingface}
 
 # Tell MinerU + its model hubs where to cache
 cat >> ~/rag-anything/.env <<'EOF'
-MODELSCOPE_CACHE=/Volumes/Crucial-4T/models/modelscope
-HF_HOME=/Volumes/Crucial-4T/models/huggingface
-HF_HUB_CACHE=/Volumes/Crucial-4T/models/huggingface/hub
+MODELSCOPE_CACHE=/path/to/external/drive/models/modelscope
+HF_HOME=/path/to/external/drive/models/huggingface
+HF_HUB_CACHE=/path/to/external/drive/models/huggingface/hub
 EOF
 ```
 
@@ -114,7 +111,7 @@ print('MinerU import OK')
 
 First real ingest will trigger the model download (one-time).
 
-## ⚡ Speed (M4 32 GB)
+## ⚡ Speed (rough, Apple Silicon)
 
 | Document | MinerU time (MPS) |
 |----------|-------------------|

@@ -9,10 +9,10 @@ Start the local LightRAG server (FastAPI) on `http://localhost:9621`. Server run
 
 ## Configuration
 
-- **Project dir:** `/Users/isaia/rag-anything` (code), `/Volumes/Crucial-4T/rag-anything` (data)
-- **Start script:** `/Users/isaia/rag-anything/scripts/server-start.sh`
-- **Logs:** `/Users/isaia/rag-anything/logs/server.log`
-- **PID file:** `/Users/isaia/rag-anything/logs/server.pid`
+- **Project dir:** `~/rag-anything` (code), `~/rag-anything` (data)
+- **Start script:** `~/rag-anything/scripts/server-start.sh`
+- **Logs:** `~/rag-anything/logs/server.log`
+- **PID file:** `~/rag-anything/logs/server.pid`
 - **Backend:** Ollama (`qwen2.5vl:7b` + `bge-m3`) — script auto-starts ollama if down
 
 ## Usage
@@ -20,7 +20,7 @@ Start the local LightRAG server (FastAPI) on `http://localhost:9621`. Server run
 Run the start script:
 
 ```bash
-/Users/isaia/rag-anything/scripts/server-start.sh
+~/rag-anything/scripts/server-start.sh
 ```
 
 The script:
@@ -41,15 +41,14 @@ curl -sf http://localhost:9621/health && echo "OK"
 Show the user the tail of the log:
 
 ```bash
-tail -30 /Users/isaia/rag-anything/logs/server.log
+tail -30 ~/rag-anything/logs/server.log
 ```
 
 Common failures:
 - **`Address already in use`** — server already running from another shell. Run `/lightrag-stop` first.
-- **`No module named 'lightrag'`** — venv not installed. Run `/Users/isaia/rag-anything/bootstrap.sh`.
+- **`No module named 'lightrag'`** — venv not installed. Run `~/rag-anything/bootstrap.sh`.
 - **Ollama unreachable** — `brew services start ollama` then retry.
-- **Crucial-4T not mounted** — server can't write to storage. Plug in the drive.
 
 ## Confirm to the user
 
-> LightRAG server running on http://localhost:9621 (pid X). Models: qwen2.5vl:7b + bge-m3 via Ollama. Storage: /Volumes/Crucial-4T/rag-anything/storage.
+> LightRAG server running on http://localhost:9621 (pid X). Models: qwen2.5vl:7b + bge-m3 via Ollama. Storage: ~/rag-anything/storage.

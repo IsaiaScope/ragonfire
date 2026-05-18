@@ -15,7 +15,7 @@ Upload a text-based document to the local LightRAG knowledge base via REST. Ligh
 ## Configuration
 
 - **Server:** `http://localhost:9621`
-- **Project dir:** `/Users/isaia/rag-anything` (code), `/Volumes/Crucial-4T/rag-anything` (data)
+- **Project dir:** `~/rag-anything` (code), `~/rag-anything` (data)
 
 ## Preflight: ensure server is up
 
@@ -78,6 +78,6 @@ User: "Add my research notes to the knowledge base" (provides file path)
 
 ## Error Handling
 
-- **Server unreachable** — run `/lightrag-start`. If still down, check `tail -30 /Users/isaia/rag-anything/logs/server.log`.
+- **Server unreachable** — run `/lightrag-start`. If still down, check `tail -30 ~/rag-anything/logs/server.log`.
 - **Upload fails** — verify file exists and is text-based. For PDFs with visual content, use `/raganything-upload`.
 - **Pipeline stuck** — large files take minutes. Check `latest_message` for progress.

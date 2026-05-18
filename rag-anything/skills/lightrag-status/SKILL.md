@@ -53,7 +53,7 @@ curl -s "http://localhost:9621/graph/label/popular?limit=15"
 LightRAG Knowledge Base Status
 ==============================
 Server: http://localhost:9621 — Online
-Storage: /Volumes/Crucial-4T/rag-anything/storage
+Storage: ~/rag-anything/storage
 Backend: ollama qwen2.5vl:7b + bge-m3
 Processing: Idle  (or "Processing 3 documents — extracting entities...")
 
