@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Clean stop + sync + eject the drive so it's safe to unplug.
 set -euo pipefail
-REPO_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd )"
 # shellcheck disable=SC1090
 set -a; source "${RAGONFIRE_RUNTIME:-$HOME/rag-anything}/.env"; set +a
+REPO_DIR="${RAGONFIRE_REPO_DIR:-$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd )}"
 
 DRIVE_ROOT="/Volumes/Crucial-4T"
 

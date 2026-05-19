@@ -4,6 +4,7 @@ services:
   pg-init:
     build: ./pg-init
     image: pg-init:latest
+    container_name: ragonfire-pg-init
     privileged: true
     volumes:
       - ${PGDATA_IMG}:/mnt/host/pgdata.ext4.img

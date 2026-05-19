@@ -2,10 +2,10 @@
 # Snapshots, wipes .img, re-inits, re-ingests everything in INPUT_DIR,
 # then bumps lightrag_meta.lightrag_version to the new pin.
 set -euo pipefail
-REPO_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd )"
 RUNTIME_DIR="${RAGONFIRE_RUNTIME:-$HOME/rag-anything}"
 # shellcheck disable=SC1090
 set -a; source "$RUNTIME_DIR/.env"; set +a
+REPO_DIR="${RAGONFIRE_REPO_DIR:-$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd )}"
 
 NEW_VERSION=$(grep -E '^lightrag-hku\[api\]==' "$REPO_DIR/rag-anything/requirements.txt" | sed 's/.*==//')
 [ -n "$NEW_VERSION" ] || { echo "[upgrade] cannot read pinned version from requirements.txt" >&2; exit 1; }

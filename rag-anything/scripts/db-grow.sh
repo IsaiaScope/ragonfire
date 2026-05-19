@@ -4,9 +4,9 @@ set -euo pipefail
 NEW_SIZE="${1:-}"
 [ -n "$NEW_SIZE" ] || { echo "usage: db-grow.sh <new-size>  (e.g. 100G, 500G, 1T)" >&2; exit 1; }
 
-REPO_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd )"
 # shellcheck disable=SC1090
 set -a; source "${RAGONFIRE_RUNTIME:-$HOME/rag-anything}/.env"; set +a
+REPO_DIR="${RAGONFIRE_REPO_DIR:-$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd )}"
 
 echo "[grow] stopping stack"
 "$REPO_DIR/rag-anything/scripts/lightrag-stop.sh"

@@ -68,7 +68,7 @@ def _lightrag_kwargs() -> dict[str, object]:
         "vector_storage": os.environ.get("LIGHTRAG_VECTOR_STORAGE", "NanoVectorDBStorage"),
         "graph_storage": os.environ.get("LIGHTRAG_GRAPH_STORAGE", "NetworkXStorage"),
         "doc_status_storage": os.environ.get("LIGHTRAG_DOC_STATUS_STORAGE", "JsonDocStatusStorage"),
-        "workspace": os.environ.get("POSTGRES_WORKSPACE", "default"),
+        "workspace": os.environ.get("WORKSPACE", os.environ.get("POSTGRES_WORKSPACE", "default")),
         "top_k": int(os.environ.get("TOP_K", "40")),
         "cosine_threshold": float(os.environ.get("COSINE_THRESHOLD", "0.2")),
         "chunk_token_size": int(os.environ.get("CHUNK_SIZE", "1200")),

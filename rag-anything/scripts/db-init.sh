@@ -3,14 +3,20 @@
 # Idempotent: bails cleanly if the image already exists unless --force.
 set -euo pipefail
 
-REPO_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd )"
 RUNTIME_DIR="${RAGONFIRE_RUNTIME:-$HOME/rag-anything}"
 ENV_FILE="$RUNTIME_DIR/.env"
-[ -f "$ENV_FILE" ] || ENV_FILE="$REPO_DIR/rag-anything/.env.example"
 PGDATA_IMG_OVERRIDE="${PGDATA_IMG:-}"
 PGDATA_IMG_CAP_OVERRIDE="${PGDATA_IMG_CAP:-}"
-# shellcheck disable=SC1090
-set -a; source "$ENV_FILE"; set +a
+if [ -f "$ENV_FILE" ]; then
+  # shellcheck disable=SC1090
+  set -a; source "$ENV_FILE"; set +a
+fi
+REPO_DIR="${RAGONFIRE_REPO_DIR:-$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd )}"
+if [ ! -f "$ENV_FILE" ]; then
+  ENV_FILE="$REPO_DIR/rag-anything/.env.example"
+  # shellcheck disable=SC1090
+  set -a; source "$ENV_FILE"; set +a
+fi
 [ -n "$PGDATA_IMG_OVERRIDE" ] && PGDATA_IMG="$PGDATA_IMG_OVERRIDE"
 [ -n "$PGDATA_IMG_CAP_OVERRIDE" ] && PGDATA_IMG_CAP="$PGDATA_IMG_CAP_OVERRIDE"
 

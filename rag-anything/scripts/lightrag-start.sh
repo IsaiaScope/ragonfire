@@ -4,12 +4,14 @@
 set -euo pipefail
 export COPYFILE_DISABLE=1
 
-REPO_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd )"
 RUNTIME_DIR="${RAGONFIRE_RUNTIME:-$HOME/rag-anything}"
 ENV_FILE="$RUNTIME_DIR/.env"
 [ -f "$ENV_FILE" ] || { echo "[start] FATAL: $ENV_FILE missing - run bootstrap.sh first" >&2; exit 1; }
 # shellcheck disable=SC1090
 set -a; source "$ENV_FILE"; set +a
+# REPO_DIR after .env so RAGONFIRE_REPO_DIR loaded from .env wins
+# over the fallback (script's own dir + ../..).
+REPO_DIR="${RAGONFIRE_REPO_DIR:-$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd )}"
 mkdir -p "$RUNTIME_DIR/logs"
 
 [ -f "$PGDATA_IMG" ] || { echo "[start] FATAL: $PGDATA_IMG missing - run scripts/db-init.sh first" >&2; exit 1; }
@@ -25,6 +27,12 @@ for _ in $(seq 1 15); do
 done
 
 COMPOSE="docker compose -f $REPO_DIR/infra/docker-compose.yml --env-file $ENV_FILE"
+
+# Strip macOS AppleDouble shadow files (._*) that ExFAT cannot suppress.
+# They break docker build context and pollute mounted volumes.
+find "$REPO_DIR/infra" -name '._*' -delete 2>/dev/null || true
+find "$(dirname "$PGDATA_IMG")" -maxdepth 1 -name '._*' -delete 2>/dev/null || true
+
 echo "[start] docker compose up"
 LIGHTRAG_ENV_FILE="$ENV_FILE" $COMPOSE up -d
 

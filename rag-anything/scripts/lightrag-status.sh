@@ -2,11 +2,11 @@
 # Quick health snapshot of the whole stack.
 set -euo pipefail
 
-REPO_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd )"
 ENV_FILE="${RAGONFIRE_RUNTIME:-$HOME/rag-anything}/.env"
 [ -f "$ENV_FILE" ] || { echo "[status] no .env"; exit 1; }
 # shellcheck disable=SC1090
 set -a; source "$ENV_FILE"; set +a
+REPO_DIR="${RAGONFIRE_REPO_DIR:-$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd )}"
 
 echo "=== Ollama ==="
 pgrep -x ollama >/dev/null && echo "daemon: running" || echo "daemon: STOPPED"

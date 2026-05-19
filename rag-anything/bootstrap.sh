@@ -41,12 +41,22 @@ log "preparing runtime dirs"
 mkdir -p "$RUNTIME_DIR"/{scripts,logs}
 
 log "syncing scripts + config from repo to $RUNTIME_DIR"
+# Wipe stale scripts so renames/deletions in the repo don't leave orphans.
+find "$RUNTIME_DIR/scripts" -mindepth 1 -maxdepth 1 \( -name '*.py' -o -name '*.sh' \) -delete 2>/dev/null || true
 cp "$REPO_DIR"/scripts/*.py "$RUNTIME_DIR/scripts/"
 cp "$REPO_DIR"/scripts/*.sh "$RUNTIME_DIR/scripts/"
 cp "$REPO_DIR"/requirements.txt "$RUNTIME_DIR/"
 [ -f "$RUNTIME_DIR/.env" ] || cp "$REPO_DIR/.env.example" "$RUNTIME_DIR/.env"
 cp "$REPO_DIR/.env.example" "$RUNTIME_DIR/.env.example"
 chmod +x "$RUNTIME_DIR"/scripts/*.sh "$RUNTIME_DIR"/scripts/*.py
+
+# Stamp RAGONFIRE_REPO_DIR into the runtime .env so scripts find the repo
+# regardless of where they're invoked from. Idempotent: replace existing line.
+if grep -q '^RAGONFIRE_REPO_DIR=' "$RUNTIME_DIR/.env"; then
+  python3 -c "import pathlib,re,sys; p=pathlib.Path(sys.argv[1]); p.write_text(re.sub(r'^RAGONFIRE_REPO_DIR=.*\$', f'RAGONFIRE_REPO_DIR={sys.argv[2]}', p.read_text(), flags=re.M))" "$RUNTIME_DIR/.env" "$REPO_ROOT"
+else
+  printf '\n# Repo path (set by bootstrap so scripts find infra/* from anywhere)\nRAGONFIRE_REPO_DIR=%s\n' "$REPO_ROOT" >> "$RUNTIME_DIR/.env"
+fi
 
 # shellcheck disable=SC1090
 set -a; source "$RUNTIME_DIR/.env"; set +a
@@ -85,7 +95,7 @@ if [ "$SKIP_SKILLS" -eq 1 ]; then
   log "skipping skills install"
 else
   log "installing skills ${SKILL_ARGS[*]:-(default: claude-code)}"
-  "$REPO_ROOT/scripts/install-skills.sh" "${SKILL_ARGS[@]}"
+  "$REPO_ROOT/scripts/install-skills.sh" "${SKILL_ARGS[@]+"${SKILL_ARGS[@]}"}"
 fi
 
 cat <<EOF
