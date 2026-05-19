@@ -7,14 +7,23 @@ $RECYCLE.BIN/
 
 # --- Big binary data (do NOT push) ---
 
-# Ollama models (~7 GB)
+# Ollama runtime — models + state. ~/.ollama symlinks here when models live in repo.
+# id_ed25519 is the Ollama private signing key — NEVER commit.
 ollama/models/
 ollama/blobs/
 ollama/manifests/
+ollama/cache/
+ollama/history
+ollama/id_ed25519
+ollama/id_ed25519.pub
+ollama/.fseventsd/
 
-# MinerU models (~5 GB)
+# MinerU models — first ingest downloads ~5 GB via HF Hub + ModelScope
 mineru/models/
 mineru/cache/
+mineru/huggingface/
+mineru/modelscope/
+mineru/.cache/
 
 # RAG-Anything runtime
 rag-anything/.venv/
@@ -49,3 +58,4 @@ __pycache__/
 # --- Node (if ever added) ---
 node_modules/
 .pnpm-store/
+.iso/
