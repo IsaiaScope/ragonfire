@@ -1,0 +1,63 @@
+name: ragonfire
+
+services:
+  pg-init:
+    build: ./pg-init
+    image: pg-init:latest
+    privileged: true
+    volumes:
+      - ${PGDATA_IMG}:/mnt/host/pgdata.ext4.img
+      - pgdata-vol:/pgdata-vol
+    restart: "no"
+    networks: [internal]
+
+  postgres:
+    build: ./postgres
+    image: postgres:latest
+    container_name: ragonfire-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DATABASE}
+      PGDATA: /pgdata-vol/pg
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT_EXTERNAL}:5432"
+    volumes:
+      - pgdata-vol:/pgdata-vol
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+    depends_on:
+      pg-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DATABASE}"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [internal]
+
+  lightrag-server:
+    build: ./lightrag-server
+    image: lightrag-server:latest
+    container_name: ragonfire-lightrag
+    ports:
+      - "127.0.0.1:${LIGHTRAG_PORT_EXTERNAL}:${LIGHTRAG_PORT_INTERNAL}"
+    env_file:
+      - ${LIGHTRAG_ENV_FILE:-../rag-anything/.env.example}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${LIGHTRAG_PORT_INTERNAL}/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+    networks: [internal]
+
+volumes:
+  pgdata-vol:
+
+networks:
+  internal:
+    driver: bridge

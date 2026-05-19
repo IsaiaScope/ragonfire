@@ -9,12 +9,12 @@ Query the local LightRAG knowledge base via REST and return a formatted answer w
 
 ## Configuration
 
-- **Server:** `http://localhost:9621`
+- **Server:** `http://localhost:9622`
 
 ## Preflight: server must be up
 
 ```bash
-curl -sf http://localhost:9621/health >/dev/null || { echo "Server down — run /lightrag-start"; exit 1; }
+curl -sf http://localhost:9622/health >/dev/null || { echo "Server down — run /lightrag-start"; exit 1; }
 ```
 
 If down, invoke `/lightrag-start` first.
@@ -22,7 +22,7 @@ If down, invoke `/lightrag-start` first.
 ## Usage
 
 ```bash
-curl -s -X POST http://localhost:9621/query \
+curl -s -X POST http://localhost:9622/query \
   -H "Content-Type: application/json" \
   -d "{\"query\": \"USER_QUESTION_HERE\", \"mode\": \"hybrid\"}"
 ```
@@ -52,7 +52,7 @@ Format for the user:
 User: "What's the relationship between Anthropic and Claude Code?"
 
 ```bash
-curl -s -X POST http://localhost:9621/query \
+curl -s -X POST http://localhost:9622/query \
   -H "Content-Type: application/json" \
   -d '{"query": "What is the relationship between Anthropic and Claude Code?", "mode": "hybrid"}'
 ```

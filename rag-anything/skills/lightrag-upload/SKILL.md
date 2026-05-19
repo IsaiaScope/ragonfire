@@ -7,6 +7,8 @@ description: Upload a plain-text document (TXT, MD, simple PDF) to the local Lig
 
 Upload a text-based document to the local LightRAG knowledge base via REST. LightRAG processes the file in the background — extracting entities, building the knowledge graph, creating embeddings.
 
+Postgres handles concurrent ingest + query, so the server stays up during upload.
+
 ## When to use this vs /raganything-upload
 
 - **`/lightrag-upload`** — plain text (TXT, MD, CSV, simple text-only PDFs). REST API, fast.
@@ -14,13 +16,13 @@ Upload a text-based document to the local LightRAG knowledge base via REST. Ligh
 
 ## Configuration
 
-- **Server:** `http://localhost:9621`
+- **Server:** `http://localhost:9622`
 - **Project dir:** `~/rag-anything` (code), `~/rag-anything` (data)
 
 ## Preflight: ensure server is up
 
 ```bash
-curl -sf http://localhost:9621/health >/dev/null || { echo "Server down — run /lightrag-start first"; exit 1; }
+curl -sf http://localhost:9622/health >/dev/null || { echo "Server down — run /lightrag-start first"; exit 1; }
 ```
 
 If the check fails, invoke `/lightrag-start` before continuing.
@@ -30,7 +32,7 @@ If the check fails, invoke `/lightrag-start` before continuing.
 ### Upload a file
 
 ```bash
-curl -s -X POST http://localhost:9621/documents/upload \
+curl -s -X POST http://localhost:9622/documents/upload \
   -F "file=@/path/to/document.txt"
 ```
 
@@ -39,7 +41,7 @@ Supported file types: TXT, MD, CSV, PDF (text-only), DOCX (light), and other tex
 ### Check processing status
 
 ```bash
-curl -s http://localhost:9621/documents/pipeline_status
+curl -s http://localhost:9622/documents/pipeline_status
 ```
 
 Key fields:
@@ -52,7 +54,7 @@ Key fields:
 Poll every 5-10s until `busy` is `false`:
 
 ```bash
-while curl -s http://localhost:9621/documents/pipeline_status | python3 -c "import sys,json; sys.exit(0 if json.load(sys.stdin).get('busy') else 1)"; do
+while curl -s http://localhost:9622/documents/pipeline_status | python3 -c "import sys,json; sys.exit(0 if json.load(sys.stdin).get('busy') else 1)"; do
   sleep 5
 done
 echo "Done."
@@ -61,7 +63,7 @@ echo "Done."
 ### Insert raw text (no file)
 
 ```bash
-curl -s -X POST http://localhost:9621/documents/text \
+curl -s -X POST http://localhost:9622/documents/text \
   -H "Content-Type: application/json" \
   -d "{\"text\": \"The text content to index here\"}"
 ```

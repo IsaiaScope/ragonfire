@@ -1,5 +1,8 @@
-raganything[all]
-lightrag-hku[api]
-mineru[core]
-python-dotenv
-ollama
+lightrag-hku[api]==1.4.5
+raganything[all]==1.2.4
+mineru[core]==2.5.4
+asyncpg==0.30.0
+psycopg[binary]==3.2.3
+pgvector==0.4.1
+ollama==0.4.7
+python-dotenv==1.0.1

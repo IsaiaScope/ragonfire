@@ -1,0 +1,22 @@
+name: smoke
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  pg-stack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build pg-init + postgres images
+        run: |
+          docker build -t pg-init infra/pg-init
+          docker build -t postgres infra/postgres
+
+      - name: Create throwaway .img and run phase-1 smoke
+        run: |
+          chmod +x scripts/phase1-smoke.sh
+          ./scripts/phase1-smoke.sh

@@ -9,18 +9,18 @@ Search entities and traverse the knowledge graph.
 
 ## Configuration
 
-- **Server:** `http://localhost:9621`
+- **Server:** `http://localhost:9622`
 
 ## Preflight
 
 ```bash
-curl -sf http://localhost:9621/health >/dev/null || { echo "Server down — run /lightrag-start"; exit 1; }
+curl -sf http://localhost:9622/health >/dev/null || { echo "Server down — run /lightrag-start"; exit 1; }
 ```
 
 ## Step 1 — Find entities matching the topic
 
 ```bash
-curl -s "http://localhost:9621/graph/label/search?q=SEARCH_TERM&limit=10"
+curl -s "http://localhost:9622/graph/label/search?q=SEARCH_TERM&limit=10"
 ```
 
 Returns a JSON array of entity names (fuzzy match).
@@ -28,7 +28,7 @@ Returns a JSON array of entity names (fuzzy match).
 ## Step 2 — Subgraph around an entity
 
 ```bash
-curl -s "http://localhost:9621/graphs?label=ENTITY_NAME&max_depth=2&max_nodes=30"
+curl -s "http://localhost:9622/graphs?label=ENTITY_NAME&max_depth=2&max_nodes=30"
 ```
 
 Parameters:
@@ -50,21 +50,21 @@ Returns:
 
 ```bash
 # All entity labels
-curl -s "http://localhost:9621/graph/label/list"
+curl -s "http://localhost:9622/graph/label/list"
 
 # Hubs (most connected)
-curl -s "http://localhost:9621/graph/label/popular?limit=20"
+curl -s "http://localhost:9622/graph/label/popular?limit=20"
 
 # Existence check
-curl -s "http://localhost:9621/graph/entity/exists?name=ENTITY_NAME"
+curl -s "http://localhost:9622/graph/entity/exists?name=ENTITY_NAME"
 ```
 
 ## Example flow
 
 User: "What does my KB know about MinerU?"
 
-1. `curl -s "http://localhost:9621/graph/label/search?q=MinerU&limit=10"` → `["MinerU", "MinerU Parser"]`
-2. `curl -s "http://localhost:9621/graphs?label=MinerU&max_depth=2&max_nodes=20"`
+1. `curl -s "http://localhost:9622/graph/label/search?q=MinerU&limit=10"` → `["MinerU", "MinerU Parser"]`
+2. `curl -s "http://localhost:9622/graphs?label=MinerU&max_depth=2&max_nodes=20"`
 3. Present:
    > **MinerU** is connected to:
    > - RAG-Anything (uses MinerU as default parser)

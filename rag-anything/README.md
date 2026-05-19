@@ -1,179 +1,148 @@
-
-<h3 align="center">RAG-Anything + LightRAG — The Pipeline</h3>
+<h3 align="center">RAG-Anything + LightRAG Pipeline</h3>
 
 <p align="center">
   <em>Orchestrates MinerU + Ollama into a queryable, multimodal knowledge graph.</em>
 </p>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/RAG--Anything-multimodal-FF6B6B?logoColor=white" alt="RAG-Anything" />
-  <img src="https://img.shields.io/badge/LightRAG-1.4-1C7CFF?logoColor=white" alt="LightRAG" />
-  <img src="https://img.shields.io/badge/FastAPI-:9621-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
-  <img src="https://img.shields.io/badge/NetworkX-graph-2C5BB4?logoColor=white" alt="NetworkX" />
-  <img src="https://img.shields.io/badge/NanoVectorDB-vectors-7C3AED?logoColor=white" alt="NanoVectorDB" />
-</p>
-
 ---
 
-## 🧠 Role in RagOnFire
+## Role In RagOnFire
 
 This module wires everything together.
 
-- **RAG-Anything** is the multimodal dispatcher. For each parsed block it decides: send to the LLM as text? send the image to the vision model? extract LaTeX?
-- **LightRAG** is the retrieval engine. It builds and maintains a knowledge graph (entities + relationships) alongside a vector store, and exposes hybrid search over both.
+- RAG-Anything is the multimodal dispatcher. For each parsed block it decides whether to send text, tables, equations, or images to the model.
+- LightRAG is the retrieval engine. It maintains the knowledge graph, vector store, KV state, and document status inside Postgres.
+- Docker runs Postgres + the LightRAG server. Ollama and MinerU stay native for GPU access.
 
 ```
 PDF/DOCX/image
-      │
-      ▼
-┌──────────────┐    ┌──────────────────────┐
-│   MinerU     │ →  │  RAG-Anything        │
-│   (parser)   │    │  ────────────────    │
-└──────────────┘    │  text  → LLM         │
-                    │  table → LLM         │
-                    │  image → VLM         │
-                    │  eq    → LLM (LaTeX) │
-                    └────────┬─────────────┘
-                             │
-                    ┌────────▼─────────────┐
-                    │  LightRAG            │
-                    │  ────────────────    │
-                    │  bge-m3 embed        │
-                    │  entity merge        │
-                    │  graph build         │
-                    └────────┬─────────────┘
-                             │
-                    ┌────────▼─────────────┐
-                    │  storage/  (JSON)    │
-                    │  NetworkX + NanoVDB  │
-                    └──────────────────────┘
+      |
+      v
+MinerU native parser
+      |
+      v
+RAG-Anything ingest
+      |
+      +--> Ollama native (qwen2.5vl + bge-m3)
+      |
+      v
+LightRAG storage
+      |
+      v
+Postgres 16 container (pgvector + Apache AGE)
 ```
 
-## 🚀 Bootstrap
+## Bootstrap
 
 ```bash
 ./bootstrap.sh
 ```
 
-What it does (idempotent):
+What it does:
 
-1. Verifies `brew` and `uv` are present.
-2. Installs Ollama via Homebrew if missing; starts the service.
-3. Pulls `qwen2.5vl:7b` and `bge-m3` (skips if already present).
-4. Creates a Python 3.12 venv at `~/rag-anything/.venv` (internal SSD — exFAT external drives break venvs).
-5. Installs `raganything[all]`, `lightrag-hku[api]`, `mineru[core]`, `ollama`, `python-dotenv`.
-6. Triggers a MinerU import to validate the install.
-7. Copies `skills/` into `~/.claude/skills/` (so `/lightrag-*` slash commands are available).
-8. Copies `.env.example` → `~/rag-anything/.env`.
+1. Verifies Docker is installed and reachable.
+2. Installs or verifies `uv` and Ollama.
+3. Pulls `qwen2.5vl:7b` and `bge-m3`.
+4. Creates a Python 3.12 venv at `~/rag-anything/.venv`.
+5. Installs pinned Python dependencies.
+6. Copies scripts, requirements, and `.env.example` into the runtime.
+7. Creates `pgdata.ext4.img` if missing.
+8. Builds the Docker Compose images.
+9. Installs agent skills unless `--skip-skills` is passed.
 
-## 🗂️ What gets installed where
+## Installed Runtime
 
-| | Path | What |
-|-|------|------|
-| 🧰 | `~/rag-anything/.venv/` | Python venv (internal SSD) |
-| 🧰 | `~/rag-anything/scripts/` | Server lifecycle + `ingest.py` |
-| 🧰 | `~/rag-anything/.env` | Config (paths, model names, ports) |
-| 🧰 | `~/rag-anything/logs/` | Server stdout/err + PID file |
-| 💾 | `~/rag-anything/storage/` | KG + vectors (JSON) |
-| 💾 | `~/rag-anything/output/` | MinerU parsed artifacts |
-| 💾 | `~/rag-anything/input/` | Drop-zone for batch ingest |
-| 🎛️ | `~/.claude/skills/lightrag-*/` | 6 LightRAG slash commands |
-| 🎛️ | `~/.claude/skills/raganything-upload/` | Multimodal ingest slash command |
+| Path | What |
+|------|------|
+| `~/rag-anything/.venv/` | Python venv on internal SSD |
+| `~/rag-anything/scripts/` | Lifecycle, backup, and ingest scripts |
+| `~/rag-anything/.env` | Runtime config |
+| `~/rag-anything/logs/` | Ollama/server logs |
+| `/Volumes/Crucial-4T/rag-anything/pgdata.ext4.img` | Portable Postgres data image |
+| `/Volumes/Crucial-4T/rag-anything/output/` | MinerU parsed artifacts |
+| `/Volumes/Crucial-4T/rag-anything/input/` | Batch ingest drop-zone |
+| `/Volumes/Crucial-4T/rag-anything/backups/` | pg_dump snapshots |
 
-## 🎛️ Skills (Claude Code slash commands)
+## Storage Backend
 
-| Skill | What it does | Triggers REST? |
-|-------|--------------|----------------|
-| `/lightrag-start` | Boot the LightRAG server, ensure Ollama is up | n/a |
-| `/lightrag-stop` | Kill the server, free RAM | n/a |
-| `/lightrag-upload` | Push a text file (TXT, MD, simple PDF) | `POST /documents/upload` |
-| `/raganything-upload` | Run MinerU + VLM pipeline on a multimodal doc | Python (not REST) |
-| `/lightrag-status` | Server health, doc counts, top entities | `/documents/pipeline_status`, `/documents`, `/graph/label/popular` |
-| `/lightrag-query` | Ask the KG a question, get markdown + sources | `POST /query` |
-| `/lightrag-explore` | Subgraph around an entity | `/graph/label/search`, `/graphs` |
+Retrieval state lives in a single Postgres 16 container running pgvector + Apache AGE. The Postgres data directory sits inside an ext4 loopback image on the Crucial-4T drive:
 
-## 🔁 Lifecycle (server is on-demand)
-
-The server is **not** a daemon. You start it when you need it and stop it when you don't, so it doesn't sit in RAM forever.
-
-```bash
-# Boot
-~/rag-anything/scripts/server-start.sh
-
-# Check
-~/rag-anything/scripts/server-status.sh
-curl http://localhost:9621/health
-
-# Ingest a multimodal PDF (auto-stops + restarts the server)
-~/rag-anything/.venv/bin/python ~/rag-anything/scripts/ingest.py /path/to/doc.pdf
-
-# Query
-curl -s -X POST http://localhost:9621/query \
-  -H 'Content-Type: application/json' \
-  -d '{"query": "What is X?", "mode": "hybrid"}'
-
-# Free RAM when done
-~/rag-anything/scripts/server-stop.sh
+```
+/Volumes/Crucial-4T/rag-anything/pgdata.ext4.img   <- ext4 inside, ExFAT outside
+                                                     started at 50 GB cap, growable
 ```
 
-## 🔑 .env reference
+Vectors use HNSW indexes (`HNSW_M=16`, `HNSW_EF_CONSTRUCTION=64`, `HNSW_EF_SEARCH=40`). Graph uses AGE Cypher. KV and doc-status are plain Postgres tables. All four LightRAG storages share the same database, so a single `pg_dump` snapshot captures the entire knowledge base.
+
+## Lifecycle
+
+```bash
+/lightrag-start                     # mounts .img, boots PG + LightRAG, ensures Ollama
+/raganything-upload /path/doc.pdf   # ingest (server stays up)
+/lightrag-query "What is X?"        # ask
+/db-snapshot                        # take a backup before big changes
+/lightrag-eject                     # stop everything + eject drive before unplug
+```
+
+## .env Reference
 
 ```ini
-# Storage (LightRAG)
-WORKING_DIR=~/rag-anything/storage
-INPUT_DIR=~/rag-anything/input
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+POSTGRES_HOST_EXTERNAL=localhost
+POSTGRES_PORT_EXTERNAL=5433
+POSTGRES_USER=ragonfire
+POSTGRES_PASSWORD=ragonfire
+POSTGRES_DATABASE=ragonfire
+POSTGRES_WORKSPACE=default
 
-# Server
-HOST=0.0.0.0
-PORT=9621
+LIGHTRAG_KV_STORAGE=PGKVStorage
+LIGHTRAG_VECTOR_STORAGE=PGVectorStorage
+LIGHTRAG_GRAPH_STORAGE=PGGraphStorage
+LIGHTRAG_DOC_STATUS_STORAGE=PGDocStatusStorage
 
-# LLM
+PGDATA_IMG=/Volumes/Crucial-4T/rag-anything/pgdata.ext4.img
+PGDATA_IMG_CAP=50G
+
+LIGHTRAG_PORT_EXTERNAL=9622
+LIGHTRAG_PORT_INTERNAL=9621
+LOG_DIR=/tmp/lightrag/logs
+
 LLM_BINDING=ollama
-LLM_BINDING_HOST=http://localhost:11434
+LLM_BINDING_HOST=http://host.docker.internal:11434
 LLM_MODEL=qwen2.5vl:7b
 
-# Embeddings
 EMBEDDING_BINDING=ollama
-EMBEDDING_BINDING_HOST=http://localhost:11434
+EMBEDDING_BINDING_HOST=http://host.docker.internal:11434
 EMBEDDING_MODEL=bge-m3
 EMBEDDING_DIM=1024
 
-# Retrieval
-TOP_K=40
-COSINE_THRESHOLD=0.2
-
-# Chunking
-CHUNK_SIZE=1200
-CHUNK_OVERLAP_SIZE=100
-
-# MinerU
-MINERU_DEVICE=mps
+MINERU_DEVICE=auto
 MINERU_BACKEND=pipeline
 PARSER=mineru
 PARSE_METHOD=auto
-OUTPUT_DIR=~/rag-anything/output
 ```
 
-## 🧪 Query modes
+## Query Modes
 
-| Mode | What it does | When to use |
-|------|--------------|-------------|
-| `hybrid` (default) | Vector cosine + graph traversal | General questions |
-| `mix` | Hybrid + reranker (if configured) | Highest quality, slowest |
-| `local` | Walk neighborhood of mentioned entities | "Tell me about X" |
-| `global` | High-level themes across the whole graph | "Main themes in my corpus?" |
-| `naive` | Pure vector cosine (classic RAG) | Sanity-check baseline |
+| Mode | What it does |
+|------|--------------|
+| `hybrid` | Entity relationships + graph traversal + vectors |
+| `mix` | Knowledge graph + vector retrieval combined |
+| `naive` | Basic vector similarity |
+| `local` | Immediate entity relationships |
+| `global` | High-level cross-graph knowledge |
 
-## ⚠️ Gotchas
+## Gotchas
 
-- **The server holds storage files open.** Run `/lightrag-stop` (or the skill auto-handles it) before multimodal ingest, then restart so the KG reloads with new entities.
-- **Vector dim is locked.** Switching `EMBEDDING_MODEL` means wiping `storage/` — old vectors are incompatible with the new model.
-- **First Ollama call after a stop ≈ 10–30 s warmup** while the model loads to GPU. Subsequent calls are fast.
-- **`ollama` Python package is required by LightRAG's Ollama binding** — listed in `requirements.txt`. If `ImportError: No module named 'ollama'`, run `uv pip install --python ~/rag-anything/.venv/bin/python ollama`.
+- Docker must be running before `/lightrag-start`.
+- First Ollama calls after idle can take 10-30 seconds while the model loads.
+- Changing embedding model or dimension requires rebuilding the knowledge base.
+- Use `/lightrag-eject` before physically unplugging the drive.
 
-## 📚 Links
+## Links
 
 - RAG-Anything: [HKUDS/RAG-Anything](https://github.com/HKUDS/RAG-Anything)
 - LightRAG: [HKUDS/LightRAG](https://github.com/HKUDS/LightRAG)
 - LightRAG paper: [arXiv:2410.05779](https://arxiv.org/abs/2410.05779)
-- License: MIT (both)
+- License: MIT

@@ -9,6 +9,7 @@
 #   ./install-skills.sh --agent codex
 #   ./install-skills.sh --agent claude-code --agent codex
 #   ./install-skills.sh --agent all                    # both agents
+#   ./install-skills.sh --dry-run                      # list skills only
 #
 # For a full install (Ollama, models, Python venv, skills), use:
 #   ./rag-anything/bootstrap.sh
@@ -35,10 +36,12 @@ usage() {
 
 # Parse args
 AGENTS=()
+DRY_RUN=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --agent)    AGENTS+=("$2"); shift 2 ;;
     --agent=*)  AGENTS+=("${1#*=}"); shift ;;
+    --dry-run)  DRY_RUN=1; shift ;;
     -h|--help)  usage 0 ;;
     *)          err "unknown arg: $1 (try --help)" ;;
   esac
@@ -71,6 +74,15 @@ AGENTS=("${UNIQUE[@]}")
 
 [ -d "$SRC" ] || err "no skills dir at $SRC"
 
+if [ "$DRY_RUN" -eq 1 ]; then
+  for skill_dir in "$SRC"/*/; do
+    name=$(basename "$skill_dir")
+    [ -f "$skill_dir/SKILL.md" ] || continue
+    echo "$name/SKILL.md"
+  done
+  exit 0
+fi
+
 # Install loop
 total=0
 for agent in "${AGENTS[@]}"; do
@@ -102,8 +114,14 @@ Try the slash commands:
   /lightrag-status      — KB health
   /lightrag-query       — ask the KG
   /lightrag-explore     — walk the graph
+  /db-snapshot          — take a pg_dump backup
+  /db-restore           — restore a pg_dump backup
+  /db-list-snapshots    — list pg_dump backups
+  /db-grow              — resize the pgdata image
+  /lightrag-eject       — stop stack and eject drive
+  /lightrag-upgrade     — rebuild after schema pin changes
 
 Skills assume the runtime exists at ~/rag-anything/ with the LightRAG server
-on :9621 and Ollama on :11434. If not yet set up, run:
+on :9622 and Ollama on :11434. If not yet set up, run:
   ./rag-anything/bootstrap.sh
 EOF
