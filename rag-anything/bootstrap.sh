@@ -13,7 +13,8 @@ REPO_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 REPO_ROOT="$( cd "$REPO_DIR/.." && pwd )"
 RUNTIME_DIR="${RAGONFIRE_RUNTIME:-$HOME/rag-anything}"
 PYTHON_VERSION="3.12"
-LLM_MODEL="qwen2.5vl:7b"
+LLM_MODEL="qwen2.5vl:7b"       # vision/image extraction
+EXTRACTION_MODEL="qwen2.5:7b"  # text entity extraction (LightRAG tuple format)
 EMBED_MODEL="bge-m3"
 
 log() { printf "\033[1;36m[bootstrap]\033[0m %s\n" "$*"; }
@@ -69,7 +70,10 @@ updates = {
     "OUTPUT_DIR": str(data / "output"),
     "WORKING_DIR": str(data / "working"),
     "BACKUPS_DIR": str(data / "backups"),
-    "OLLAMA_MODELS": str(data / "ollama"),
+    # Ollama weights stay on the INTERNAL SSD, not the (often exFAT) data drive:
+    # ollama mmaps/reloads GGUF per model swap during ingest, and exFAT reloads
+    # cost seconds each and dominate runtime. Internal load is ~0.06s.
+    "OLLAMA_MODELS": str(Path.home() / ".ollama" / "models"),
     "HF_HOME": str(data / "hf"),
     "PGDATA_IMG": str(data / "pgdata.ext4.img"),
     "HOST_LOGS_DIR": str(data / "logs"),
@@ -105,7 +109,7 @@ mkdir -p "$INPUT_DIR" "$OUTPUT_DIR" "$WORKING_DIR" "$BACKUPS_DIR" \
 
 export OLLAMA_MODELS
 log "pulling ollama models"
-for m in "$LLM_MODEL" "$EMBED_MODEL"; do
+for m in "$LLM_MODEL" "$EXTRACTION_MODEL" "$EMBED_MODEL"; do
   if ollama list 2>/dev/null | awk 'NR>1 {print $1}' | grep -qx "$m"; then
     log "  $m present"
   else

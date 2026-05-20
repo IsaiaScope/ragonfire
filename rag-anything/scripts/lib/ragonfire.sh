@@ -94,7 +94,9 @@ rf_load_env_file() {
   OUTPUT_DIR="${OUTPUT_DIR:-$RAGONFIRE_DATA_DIR/output}"
   WORKING_DIR="${WORKING_DIR:-$RAGONFIRE_DATA_DIR/working}"
   BACKUPS_DIR="${BACKUPS_DIR:-$RAGONFIRE_DATA_DIR/backups}"
-  OLLAMA_MODELS="${OLLAMA_MODELS:-$RAGONFIRE_DATA_DIR/ollama}"
+  # Internal SSD, NOT the data drive: ollama reloads GGUF per model swap during
+  # ingest; exFAT reloads cost seconds each and dominate runtime (internal ~0.06s).
+  OLLAMA_MODELS="${OLLAMA_MODELS:-$HOME/.ollama/models}"
   HF_HOME="${HF_HOME:-$RAGONFIRE_DATA_DIR/hf}"
   MINERU_MODELS_DIR="${MINERU_MODELS_DIR:-$RAGONFIRE_DATA_DIR/mineru}"
   PGDATA_IMG="${PGDATA_IMG:-$RAGONFIRE_DATA_DIR/pgdata.ext4.img}"

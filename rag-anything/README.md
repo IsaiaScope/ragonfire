@@ -113,15 +113,20 @@ HOST_LOGS_DIR=/Volumes/Crucial-4T/repo/ragonfire/data/logs
 LLM_BINDING=ollama
 LLM_BINDING_HOST=http://host.docker.internal:11434
 LLM_MODEL=qwen2.5vl:7b
+EXTRACTION_MODEL=qwen2.5:7b   # text entity extraction
+VISION_MODEL=qwen2.5vl:7b     # image interpretation
+TIMEOUT=900                   # 300 times out mid-extract on M-series
 
 EMBEDDING_BINDING=ollama
 EMBEDDING_BINDING_HOST=http://host.docker.internal:11434
 EMBEDDING_MODEL=bge-m3
 EMBEDDING_DIM=1024
 
+OLLAMA_MODELS=~/.ollama/models  # internal SSD (NOT the exFAT data drive)
+
 MINERU_DEVICE=auto
 MINERU_BACKEND=pipeline
-PARSER=mineru
+PARSER=auto                   # scanned->mineru; text+figures->hybrid; text-only->pymupdf
 PARSE_METHOD=auto
 ```
 

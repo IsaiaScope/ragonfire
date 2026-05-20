@@ -36,8 +36,9 @@ Handled by `../rag-anything/bootstrap.sh`. Manual:
 ```bash
 brew install ollama
 brew services start ollama
-ollama pull qwen2.5vl:7b
-ollama pull bge-m3
+ollama pull qwen2.5vl:7b   # vision / image interpretation
+ollama pull qwen2.5:7b     # text entity extraction
+ollama pull bge-m3         # embeddings
 ```
 
 ## 🔍 Verify
@@ -50,28 +51,29 @@ ollama list
 curl -s http://localhost:11434/api/tags | jq '.models[].name'
 ```
 
-## 🗄️ Where models live (relocate to save SSD)
+## 🗄️ Where models live (keep on the INTERNAL SSD)
 
-By default Ollama stores models at `~/.ollama/models/`. To move them onto an external drive:
+Ollama stores models at `~/.ollama/models/` and this stack keeps them there
+(`OLLAMA_MODELS=~/.ollama/models`, set by `bootstrap.sh`).
+
+⚠️ **Do NOT move the model store to the exFAT data drive.** Ollama reloads GGUF
+weights every time it swaps between the extraction model (`qwen2.5:7b`) and the
+embedding model (`bge-m3`) mid-ingest. From an exFAT external SSD each reload
+costs seconds and dominates ingest runtime; from the internal SSD a load is
+~0.06s. Measured impact: the same CV ingest dropped from ~16 min to ~5 min after
+moving weights back internal. Bulk read-once caches (HuggingFace, MinerU) are
+fine on the data drive — only the hot Ollama weights must stay internal.
+
+If weights ever end up on an external drive, move them back:
 
 ```bash
-# Stop service
-brew services stop ollama
-
-# Move existing blobs
-mkdir -p /path/to/external/drive/models/ollama
-rsync -ah --remove-source-files ~/.ollama/models/ /path/to/external/drive/models/ollama/
-
-# Tell launchd + shell about the new location
-launchctl setenv OLLAMA_MODELS /path/to/external/drive/models/ollama
-echo 'export OLLAMA_MODELS=/path/to/external/drive/models/ollama' >> ~/.zshrc
-
-# Restart
+brew services stop ollama   # or: pkill -f "ollama serve"
+mkdir -p ~/.ollama/models
+rsync -a /path/to/external/models/ollama/ ~/.ollama/models/
+launchctl setenv OLLAMA_MODELS ~/.ollama/models   # session; .env makes it durable
 brew services start ollama
-ollama list   # should still show qwen2.5vl:7b + bge-m3
+ollama list   # qwen2.5vl:7b + qwen2.5:7b + bge-m3
 ```
-
-⚠️ **Caveat:** if the external drive is unmounted at boot, Ollama starts with an empty model dir. Mount it before launching the server.
 
 ## 🩺 Health checks
 

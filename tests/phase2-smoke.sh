@@ -40,7 +40,9 @@ replacements = {
     "BACKUPS_DIR": str(data / "backups"),
     "HF_HOME": str(data / "models/hf"),
     "MINERU_MODELS_DIR": str(data / "models/mineru"),
-    "OLLAMA_MODELS": str(data / "models/ollama"),
+    # Internal SSD store (shared with prod): avoids re-pulling 11GB into the
+    # test sandbox and matches the runtime config (ollama weights off exFAT).
+    "OLLAMA_MODELS": str(Path.home() / ".ollama" / "models"),
     "HOST_LOGS_DIR": str(data / "logs"),
 }
 lines = []

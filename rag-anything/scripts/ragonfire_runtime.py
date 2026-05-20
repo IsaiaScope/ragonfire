@@ -18,11 +18,16 @@ class IngestRuntime:
     output_dir: Path
     ollama_host: str
     llm_model: str
+    extraction_model: str
+    vision_model: str
     embed_model: str
     embed_dim: int
     parse_method: str
     parser: str
     mineru_device: str
+    enable_image: bool
+    enable_table: bool
+    enable_equation: bool
 
 
 def load_runtime_env(project_dir: Path) -> None:
@@ -66,6 +71,10 @@ def env_float(name: str, default: str) -> float:
         raise RuntimeError(f"{name} must be a number, got {value!r}") from exc
 
 
+def env_bool(name: str, default: str = "true") -> bool:
+    return os.environ.get(name, default).strip().lower() in ("1", "true", "yes", "on")
+
+
 def resolve_mineru_device(raw: str, scripts_dir: Path) -> str:
     if raw != "auto":
         return raw
@@ -98,17 +107,42 @@ def check_ollama(host: str) -> None:
 
 def build_runtime(project_dir: Path, scripts_dir: Path) -> IngestRuntime:
     output_dir = Path(os.environ.get("OUTPUT_DIR", str(project_dir / "output")))
+    llm_model = os.environ.get("LLM_MODEL", "qwen2.5vl:7b")
     return IngestRuntime(
         working_dir=require_env("WORKING_DIR"),
         output_dir=output_dir,
         ollama_host=os.environ.get("LLM_BINDING_HOST", "http://localhost:11434"),
-        llm_model=os.environ.get("LLM_MODEL", "qwen2.5vl:7b"),
+        llm_model=llm_model,
+        # Split models: text extraction needs a model that follows LightRAG's
+        # tuple format and survives long entity-type prompts. qwen2.5vl (vision)
+        # mangles the `<|>` delimiter and asserts in M-RoPE on long prompts, so
+        # a text model extracts and the VL model is kept for images only.
+        extraction_model=os.environ.get("EXTRACTION_MODEL", "qwen2.5:7b"),
+        vision_model=os.environ.get("VISION_MODEL", llm_model),
         embed_model=os.environ.get("EMBEDDING_MODEL", "bge-m3"),
         embed_dim=env_int("EMBEDDING_DIM", "1024"),
         parse_method=os.environ.get("PARSE_METHOD", "auto"),
-        parser=os.environ.get("PARSER", "mineru"),
+        parser=os.environ.get("PARSER", "auto"),
         mineru_device=resolve_mineru_device(os.environ.get("MINERU_DEVICE", "auto"), scripts_dir),
+        # Multimodal toggles (default on). Image captioning runs the vision model
+        # per image; disable for text-only docs (CVs, contracts) where a photo
+        # adds nothing and the VL call dominates runtime.
+        enable_image=env_bool("ENABLE_IMAGE_PROCESSING", "true"),
+        enable_table=env_bool("ENABLE_TABLE_PROCESSING", "true"),
+        enable_equation=env_bool("ENABLE_EQUATION_PROCESSING", "true"),
     )
+
+
+# LightRAG's default extraction prompt biases to org/person/geo only. This wider
+# set makes skills/tech/dates first-class entities. It is a guide, not a ceiling:
+# the extraction rules let the model coin its own type when none of these fit, so
+# new document domains are handled without editing this list.
+DEFAULT_ENTITY_TYPES = [
+    "person", "organization", "geo", "event",
+    "concept", "category", "technology", "tool",
+    "skill", "product", "role", "date",
+    "certification", "degree", "language",
+]
 
 
 def lightrag_kwargs() -> dict[str, object]:
@@ -124,4 +158,9 @@ def lightrag_kwargs() -> dict[str, object]:
         "chunk_overlap_token_size": env_int("CHUNK_OVERLAP_SIZE", "100"),
         "embedding_batch_num": env_int("EMBEDDING_BATCH_NUM", "10"),
         "max_parallel_insert": env_int("MAX_PARALLEL_INSERT", "2"),
+        # Gleaning rounds re-prompt each chunk for missed entities. Each round is
+        # an extra LLM call per chunk, so it dominates runtime. 1 balances recall
+        # vs speed; raise to 2 for max recall on dense docs (slower).
+        "entity_extract_max_gleaning": env_int("ENTITY_EXTRACT_MAX_GLEANING", "1"),
+        "addon_params": {"entity_types": DEFAULT_ENTITY_TYPES},
     }

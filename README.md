@@ -150,8 +150,14 @@ All paths are configurable via `~/rag-anything/.env` after bootstrap.
 | Parsed artifacts | `<repo>/data/output/` |
 | Batch ingest drop-zone | `<repo>/data/input/` |
 | Backups | `<repo>/data/backups/` |
-| Ollama models | `<repo>/data/ollama/` |
+| Ollama models | `~/.ollama/models/` (internal SSD — see note) |
 | HF/MinerU caches | `<repo>/data/hf/`, `<repo>/data/mineru/` |
+
+> **Ollama weights live on the internal SSD, not the data drive.** Ollama
+> reloads GGUF weights when it swaps between the extraction and embedding models
+> mid-ingest; on an exFAT external drive each reload costs seconds and dominates
+> ingest runtime (internal load is ~0.06s). `bootstrap.sh` sets
+> `OLLAMA_MODELS=~/.ollama/models` automatically.
 
 ## Requirements
 
