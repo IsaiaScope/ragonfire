@@ -59,54 +59,14 @@ cp "$REPO_DIR"/scripts/*.py "$RUNTIME_DIR/scripts/"
 cp "$REPO_DIR"/scripts/*.sh "$RUNTIME_DIR/scripts/"
 cp "$REPO_DIR"/scripts/lib/*.sh "$RUNTIME_DIR/scripts/lib/"
 cp "$REPO_DIR"/requirements.txt "$RUNTIME_DIR/"
+cp "$REPO_DIR"/requirements.lock "$RUNTIME_DIR/"
 [ -f "$RUNTIME_DIR/.env" ] || cp "$REPO_DIR/.env.example" "$RUNTIME_DIR/.env"
 cp "$REPO_DIR/.env.example" "$RUNTIME_DIR/.env.example"
 chmod +x "$RUNTIME_DIR"/scripts/*.sh "$RUNTIME_DIR"/scripts/*.py
 
 # Stamp concrete repo/data paths into runtime .env so copied scripts can run
 # from ~/rag-anything while all persistent state stays under repo-root data/.
-python3 - "$RUNTIME_DIR/.env" "$REPO_ROOT" <<'PY'
-from pathlib import Path
-import sys
-
-env = Path(sys.argv[1])
-repo = Path(sys.argv[2])
-data = repo / "data"
-updates = {
-    "RAGONFIRE_REPO_DIR": str(repo),
-    "RAGONFIRE_DATA_DIR": str(data),
-    "INPUT_DIR": str(data / "input"),
-    "OUTPUT_DIR": str(data / "output"),
-    "WORKING_DIR": str(data / "working"),
-    "BACKUPS_DIR": str(data / "backups"),
-    # Ollama weights stay on the INTERNAL SSD, not the (often exFAT) data drive:
-    # ollama mmaps/reloads GGUF per model swap during ingest, and exFAT reloads
-    # cost seconds each and dominate runtime. Internal load is ~0.06s.
-    "OLLAMA_MODELS": str(Path.home() / ".ollama" / "models"),
-    "HF_HOME": str(data / "hf"),
-    "PGDATA_IMG": str(data / "pgdata.ext4.img"),
-    "HOST_LOGS_DIR": str(data / "logs"),
-}
-
-seen = set()
-lines = []
-for line in env.read_text().splitlines():
-    key = line.split("=", 1)[0] if "=" in line else None
-    if key in updates:
-        lines.append(f"{key}={updates[key]}")
-        seen.add(key)
-    else:
-        lines.append(line)
-
-if "RAGONFIRE_REPO_DIR" not in seen:
-    lines.append("")
-    lines.append("# Paths stamped by bootstrap")
-for key, value in updates.items():
-    if key not in seen:
-        lines.append(f"{key}={value}")
-
-env.write_text("\n".join(lines) + "\n")
-PY
+python3 "$RUNTIME_DIR/scripts/render_env.py" "$RUNTIME_DIR/.env" --repo-root "$REPO_ROOT"
 
 # shellcheck disable=SC1090
 set -a; source "$RUNTIME_DIR/.env"; set +a
@@ -133,7 +93,7 @@ if [ ! -d "$RUNTIME_DIR/.venv" ]; then
 fi
 
 log "installing pinned Python deps"
-uv pip install --python "$RUNTIME_DIR/.venv/bin/python" -r "$RUNTIME_DIR/requirements.txt"
+uv pip install --python "$RUNTIME_DIR/.venv/bin/python" -r "$RUNTIME_DIR/requirements.lock"
 
 "$RUNTIME_DIR/scripts/db-init.sh"
 

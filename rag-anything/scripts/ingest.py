@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import logging
 import os
 import re
 import sys
@@ -25,20 +26,26 @@ from ragonfire_runtime import (
     load_runtime_env,
     validate_input_file,
 )
+from extraction_tuning import install_extraction_tuning, repair_extraction_result
+from parser_routing import route_parser
+from rag_adapter import (
+    create_lightrag,
+    create_raganything,
+    ingest_mineru_with_recovery,
+    initialize_lightrag,
+    insert_text_content_list,
+)
 
 load_runtime_env(PROJECT_DIR)
 
 from lightrag.llm.ollama import ollama_model_complete, ollama_embed
 from lightrag.utils import EmbeddingFunc
-from raganything import RAGAnything, RAGAnythingConfig
+from raganything import RAGAnythingConfig
 
 
 RUNTIME = build_runtime(PROJECT_DIR, SCRIPTS_DIR)
-_HTML_BREAK_RE = re.compile(r"</?br\s*/?>", re.IGNORECASE)
-# qwen2.5-vl drops the closing `)` on entity/relationship tuples: emits
-# `("entity"<|>...">##` instead of `("entity"<|>...")##`. LightRAG's parser
-# uses `\((.*)\)` to extract tuple bodies, so missing `)` discards all records.
-_MISSING_CLOSE_PAREN_RE = re.compile(r'">(\s*(?:##|<\|COMPLETE\|>))')
+logging.basicConfig(level=logging.INFO, format="[ingest] %(message)s")
+LOGGER = logging.getLogger("ragonfire.ingest")
 
 # LightRAG's wrapper does not set temperature, so Ollama falls back to 0.8 and
 # extraction is non-deterministic. Force deterministic for reliable recall.
@@ -47,76 +54,6 @@ _MISSING_CLOSE_PAREN_RE = re.compile(r'">(\s*(?:##|<\|COMPLETE\|>))')
 # the server via OLLAMA_CONTEXT_LENGTH (lightrag-start.sh) instead.
 EXTRACTION_TEMPERATURE = env_float("EXTRACTION_TEMPERATURE", "0.0")
 OLLAMA_OPTIONS = {"temperature": EXTRACTION_TEMPERATURE}
-
-# Content-agnostic extraction rules. A small model extracts by imitating the
-# few-shot examples; LightRAG ships only fiction examples, so on a bare list
-# (skills, members, items) it emits the whole comma-list as ONE entity (type
-# UNKNOWN) linked to the type word. These rules encode the lesson (split lists,
-# no type-as-name, declare every endpoint) independent of any domain, so they
-# help every document type. Injected before the ---Examples--- block.
-EXTRACTION_RULES = """######################
----Extraction rules---
-######################
-- Decompose lists: when the text contains a comma- or newline-separated list (skills, technologies, items, members, products), emit ONE entity per element. NEVER emit the whole list as a single entity.
-- Never use an entity_type label (e.g. "technology", "tool", "concept") as an entity_name. Names are concrete things, not categories.
-- Every name that appears as a source_entity or target_entity in a relationship MUST also have its own ("entity"...) record.
-- If you are unsure of an entity's type, pick the closest concrete type from the list -- never output the type label itself as the name.
-- The type list is a guide, not a fixed set: prefer a listed type, but if none genuinely fits the entity, assign a short, lowercase, general-purpose type of your own (e.g. "protein", "statute", "dataset") rather than forcing a poor match.
-- Preserve dates, durations, and date ranges as their own entities and relate them to the events or organizations they qualify.
-- Prefer the specific named thing over a paraphrase or summary of it.
-"""
-
-# Neutral, domain-free example demonstrating the rules (list-splitting, date
-# entities, every endpoint declared) WITHOUT topic bias. Added alongside
-# LightRAG's original fiction examples so prose and structured-list documents
-# both have a template. Gate: EXTRACTION_TUNING=0 restores stock LightRAG.
-NEUTRAL_LIST_EXAMPLE = """Example {n}:
-
-Entity_types: [{{entity_types}}]
-Text:
-```
-The Helios platform supports Python, Go, and Rust. It was operated by Northwind Labs from 2019 to 2023.
-```
-
-Output:
-("entity"{{tuple_delimiter}}"Helios"{{tuple_delimiter}}"product"{{tuple_delimiter}}"A platform that supports multiple programming languages."){{record_delimiter}}
-("entity"{{tuple_delimiter}}"Python"{{tuple_delimiter}}"technology"{{tuple_delimiter}}"A programming language supported by the Helios platform."){{record_delimiter}}
-("entity"{{tuple_delimiter}}"Go"{{tuple_delimiter}}"technology"{{tuple_delimiter}}"A programming language supported by the Helios platform."){{record_delimiter}}
-("entity"{{tuple_delimiter}}"Rust"{{tuple_delimiter}}"technology"{{tuple_delimiter}}"A programming language supported by the Helios platform."){{record_delimiter}}
-("entity"{{tuple_delimiter}}"Northwind Labs"{{tuple_delimiter}}"organization"{{tuple_delimiter}}"The organization that operated the Helios platform from 2019 to 2023."){{record_delimiter}}
-("entity"{{tuple_delimiter}}"2019"{{tuple_delimiter}}"date"{{tuple_delimiter}}"The year operation of the Helios platform began."){{record_delimiter}}
-("entity"{{tuple_delimiter}}"2023"{{tuple_delimiter}}"date"{{tuple_delimiter}}"The year operation of the Helios platform ended."){{record_delimiter}}
-("relationship"{{tuple_delimiter}}"Helios"{{tuple_delimiter}}"Python"{{tuple_delimiter}}"The Helios platform supports the Python language."{{tuple_delimiter}}"supports"{{tuple_delimiter}}7){{record_delimiter}}
-("relationship"{{tuple_delimiter}}"Helios"{{tuple_delimiter}}"Go"{{tuple_delimiter}}"The Helios platform supports the Go language."{{tuple_delimiter}}"supports"{{tuple_delimiter}}7){{record_delimiter}}
-("relationship"{{tuple_delimiter}}"Helios"{{tuple_delimiter}}"Rust"{{tuple_delimiter}}"The Helios platform supports the Rust language."{{tuple_delimiter}}"supports"{{tuple_delimiter}}7){{record_delimiter}}
-("relationship"{{tuple_delimiter}}"Northwind Labs"{{tuple_delimiter}}"Helios"{{tuple_delimiter}}"Northwind Labs operated the Helios platform from 2019 to 2023."{{tuple_delimiter}}"operated, ownership"{{tuple_delimiter}}9){{record_delimiter}}
-("relationship"{{tuple_delimiter}}"Northwind Labs"{{tuple_delimiter}}"2019"{{tuple_delimiter}}"Northwind Labs began operating the Helios platform in 2019."{{tuple_delimiter}}"start date"{{tuple_delimiter}}8){{record_delimiter}}
-("relationship"{{tuple_delimiter}}"Northwind Labs"{{tuple_delimiter}}"2023"{{tuple_delimiter}}"Northwind Labs stopped operating the Helios platform in 2023."{{tuple_delimiter}}"end date"{{tuple_delimiter}}8){{record_delimiter}}
-("content_keywords"{{tuple_delimiter}}"software platform, programming languages, operation period"){{completion_delimiter}}
-"""
-
-
-def _install_extraction_tuning() -> None:
-    """Inject content-free rules + a neutral list example into LightRAG prompts.
-
-    Generalizes across document types: the rules teach list-splitting /
-    no-type-as-name / declare-every-endpoint regardless of domain, and the
-    neutral example is added beside LightRAG's originals (not replacing them).
-    Gate with EXTRACTION_TUNING=0 to restore stock LightRAG behavior.
-    """
-    if os.environ.get("EXTRACTION_TUNING", "1") != "1":
-        return
-    from lightrag import prompt as lrprompt
-    base = lrprompt.PROMPTS["entity_extraction"]
-    anchor = "######################\n---Examples---"
-    if "---Extraction rules---" not in base and anchor in base:
-        lrprompt.PROMPTS["entity_extraction"] = base.replace(
-            anchor, EXTRACTION_RULES + anchor, 1
-        )
-    # Replace LightRAG's 3 long fiction examples with the single neutral one.
-    # Those examples are sent verbatim on every extract + gleaning call; dropping
-    # them roughly halves prompt size (faster) and keeps the on-task template.
-    lrprompt.PROMPTS["entity_extraction_examples"] = [NEUTRAL_LIST_EXAMPLE.format(n=1)]
 
 
 async def llm_func(prompt, system_prompt=None, history_messages=None, **kwargs):
@@ -135,10 +72,7 @@ async def llm_func(prompt, system_prompt=None, history_messages=None, **kwargs):
         options=merged_options,
         **pass_through,
     )
-    if isinstance(result, str):
-        result = _HTML_BREAK_RE.sub("", result)
-        result = _MISSING_CLOSE_PAREN_RE.sub(r'")\1', result)
-    return result
+    return repair_extraction_result(result)
 
 
 async def vision_func(prompt, system_prompt=None, history_messages=None, image_data=None, messages=None, **kwargs):
@@ -192,31 +126,6 @@ def _pymupdf_content_list(pdf_path: Path) -> list[dict]:
     return [{"type": "text", "text": md}]
 
 
-async def _ingest_pymupdf(rag: "RAGAnything", file_path: Path) -> None:
-    """Insert a PyMuPDF-extracted content list, bypassing the MinerU parser.
-
-    Mirrors process_document_complete's text path (separate_content ->
-    insert_text_content) without the parse step.
-    """
-    from raganything.utils import insert_text_content, separate_content
-
-    content_list = _pymupdf_content_list(file_path)
-    if not content_list:
-        raise RuntimeError(
-            f"PyMuPDF found no text layer in {file_path.name}; it may be a scanned "
-            "PDF. Use PARSER=mineru for OCR."
-        )
-    await rag._ensure_lightrag_initialized()
-    doc_id = rag._generate_content_based_doc_id(content_list)
-    text_content, _ = separate_content(content_list)
-    await insert_text_content(
-        rag.lightrag,
-        text_content,
-        file_paths=file_path.name,
-        ids=doc_id,
-    )
-
-
 def _norm(s: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[#*_`>|\-–—]", " ", s)).strip().lower()
 
@@ -246,105 +155,33 @@ def _recover_dropped_text(pdf_path: Path, content_list: list[dict]) -> str:
     return "\n".join(missing)
 
 
-async def _ingest_mineru_recover(
-    rag: "RAGAnything", file_path: Path, output_dir: Path, parse_method: str, device: str
-) -> None:
-    """MinerU parse (best structure/multimodal) augmented with the text MinerU
-    dropped, recovered via pymupdf4llm. Best of both: MinerU's extraction quality
-    plus the discarded date rails / side columns."""
-    from raganything.utils import insert_text_content, separate_content
-
-    content_list, doc_id = await rag.parse_document(
-        str(file_path), str(output_dir), parse_method, False, device=device
-    )
-    recovered = _recover_dropped_text(file_path, content_list)
-    if recovered:
-        print(f"[ingest] recovered {len(recovered.splitlines())} dropped line(s) via pymupdf4llm")
-        content_list = content_list + [{"type": "text", "text": recovered}]
-    text_content, multimodal_items = separate_content(content_list)
-    if text_content.strip():
-        await insert_text_content(
-            rag.lightrag, text_content, file_paths=file_path.name, ids=doc_id
-        )
-    if multimodal_items:
-        await rag._process_multimodal_content(multimodal_items, str(file_path), doc_id)
-
-
-def _pdf_has_text_layer(pdf_path: Path, min_chars: int = 100) -> bool:
-    """True if the PDF carries a real text layer (digital), False if scanned.
-
-    Routing key for PARSER=auto: a digital PDF can use the pymupdf fast path
-    (sub-second parse, no OCR), a scanned PDF needs MinerU's OCR. MinerU OCRs
-    *regardless* of PARSE_METHOD, so on a text-layer doc its OCR pass is pure
-    waste -- minutes for nothing. fitz reads the embedded text without OCR.
-    """
-    import fitz
-
-    with fitz.open(str(pdf_path)) as doc:
-        return sum(len(p.get_text("text")) for p in doc) >= min_chars
-
-
-def _pdf_max_image_coverage(pdf_path: Path) -> float:
-    """Largest fraction of any page covered by raster images.
-
-    Distinguishes informational figures/charts (large -> need MinerU vision)
-    from decorative images like headshots or logos (small -> ignore). pymupdf
-    is text-only and skips raster figures, so a digital PDF with real figures
-    must go to the hybrid path instead of the fast pymupdf path. Coverage beats
-    image *count*: one 25%-page chart matters, ten 2% icons do not.
-    """
-    import fitz
-
-    worst = 0.0
-    with fitz.open(str(pdf_path)) as doc:
-        for page in doc:
-            page_area = (page.rect.width * page.rect.height) or 1.0
-            covered = 0.0
-            for img in page.get_images(full=True):
-                try:
-                    covered += sum(r.width * r.height for r in page.get_image_rects(img[0]))
-                except Exception:
-                    continue
-            worst = max(worst, covered / page_area)
-    return worst
-
-
-# A digital PDF whose largest page-image coverage meets this fraction is treated
-# as figure-bearing (route to hybrid for MinerU vision). Below it, images are
-# decorative (headshot/logo) and the pymupdf fast path loses nothing.
-FIGURE_COVERAGE_THRESHOLD = 0.15
-
-
 async def ingest(file_path: Path, output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     Path(RUNTIME.working_dir).mkdir(parents=True, exist_ok=True)
     check_ollama(RUNTIME.ollama_host)
 
     is_pdf = file_path.suffix.lower() == ".pdf"
-    parser = RUNTIME.parser
-    if parser == "auto" and is_pdf:
-        if not _pdf_has_text_layer(file_path):
-            parser = "mineru"   # scanned -> OCR
-        elif _pdf_max_image_coverage(file_path) >= FIGURE_COVERAGE_THRESHOLD:
-            parser = "hybrid"   # digital + real figures -> MinerU vision + recover dropped text
-        else:
-            parser = "pymupdf"  # digital text (no/decorative images) -> fast path
+    parser = route_parser(file_path, RUNTIME.parser)
     use_pymupdf = parser == "pymupdf" and is_pdf
     use_hybrid = parser == "hybrid" and is_pdf
 
-    print(f"[ingest] file       : {file_path}")
-    print(f"[ingest] kv         : {os.environ.get('LIGHTRAG_KV_STORAGE', '(default)')}")
-    print(f"[ingest] vector     : {os.environ.get('LIGHTRAG_VECTOR_STORAGE', '(default)')}")
-    print(f"[ingest] graph      : {os.environ.get('LIGHTRAG_GRAPH_STORAGE', '(default)')}")
-    print(f"[ingest] doc-status : {os.environ.get('LIGHTRAG_DOC_STATUS_STORAGE', '(default)')}")
-    print(f"[ingest] storage    : {RUNTIME.working_dir}")
-    print(f"[ingest] output     : {output_dir}")
+    LOGGER.info("file       : %s", file_path)
+    LOGGER.info("kv         : %s", os.environ.get("LIGHTRAG_KV_STORAGE", "(default)"))
+    LOGGER.info("vector     : %s", os.environ.get("LIGHTRAG_VECTOR_STORAGE", "(default)"))
+    LOGGER.info("graph      : %s", os.environ.get("LIGHTRAG_GRAPH_STORAGE", "(default)"))
+    LOGGER.info("doc-status : %s", os.environ.get("LIGHTRAG_DOC_STATUS_STORAGE", "(default)"))
+    LOGGER.info("storage    : %s", RUNTIME.working_dir)
+    LOGGER.info("output     : %s", output_dir)
     _parser_label = parser if parser == RUNTIME.parser else f"{RUNTIME.parser}->{parser}"
-    print(f"[ingest] parser     : {_parser_label} (method={RUNTIME.parse_method}, device={RUNTIME.mineru_device})")
-    print(f"[ingest] extract    : ollama {RUNTIME.extraction_model}")
-    print(f"[ingest] vision     : ollama {RUNTIME.vision_model}")
-    print(f"[ingest] embed      : ollama {RUNTIME.embed_model} ({RUNTIME.embed_dim}d)")
-    print()
+    LOGGER.info(
+        "parser     : %s (method=%s, device=%s)",
+        _parser_label,
+        RUNTIME.parse_method,
+        RUNTIME.mineru_device,
+    )
+    LOGGER.info("extract    : ollama %s", RUNTIME.extraction_model)
+    LOGGER.info("vision     : ollama %s", RUNTIME.vision_model)
+    LOGGER.info("embed      : ollama %s (%sd)", RUNTIME.embed_model, RUNTIME.embed_dim)
 
     config = RAGAnythingConfig(
         # pymupdf is our own text path, not a RAG-Anything parser; pass a valid
@@ -357,40 +194,27 @@ async def ingest(file_path: Path, output_dir: Path) -> None:
         enable_equation_processing=RUNTIME.enable_equation,
     )
 
-    argv = sys.argv[:]
-    try:
-        sys.argv = [sys.argv[0]]
-        from lightrag import LightRAG
-        from lightrag.kg.shared_storage import initialize_pipeline_status
-
-        _install_extraction_tuning()
-
-        lightrag = LightRAG(
-            working_dir=RUNTIME.working_dir,
-            llm_model_func=llm_func,
-            llm_model_name=RUNTIME.extraction_model,
-            embedding_func=embed_func,
-            **lightrag_kwargs(),
-        )
-    finally:
-        sys.argv = argv
-
-    await lightrag.initialize_storages()
-    await initialize_pipeline_status()
-
-    rag = RAGAnything(
-        lightrag=lightrag,
-        config=config,
-        llm_model_func=llm_func,
-        vision_model_func=vision_func,
-        embedding_func=embed_func,
-    )
+    install_extraction_tuning()
+    lightrag = create_lightrag(RUNTIME, embed_func, llm_func, lightrag_kwargs())
+    await initialize_lightrag(lightrag)
+    rag = create_raganything(lightrag, config, llm_func, vision_func, embed_func)
 
     if use_pymupdf:
-        await _ingest_pymupdf(rag, file_path)
+        content_list = _pymupdf_content_list(file_path)
+        if not content_list:
+            raise RuntimeError(
+                f"PyMuPDF found no text layer in {file_path.name}; it may be a scanned "
+                "PDF. Use PARSER=mineru for OCR."
+            )
+        await insert_text_content_list(rag, file_path, content_list)
     elif use_hybrid:
-        await _ingest_mineru_recover(
-            rag, file_path, output_dir, RUNTIME.parse_method, RUNTIME.mineru_device
+        await ingest_mineru_with_recovery(
+            rag,
+            file_path,
+            output_dir,
+            RUNTIME.parse_method,
+            RUNTIME.mineru_device,
+            _recover_dropped_text,
         )
     else:
         await rag.process_document_complete(
@@ -400,7 +224,7 @@ async def ingest(file_path: Path, output_dir: Path) -> None:
             device=RUNTIME.mineru_device,
         )
 
-    print(f"\n[ingest] done. KG updated at {RUNTIME.working_dir}")
+    LOGGER.info("done. KG updated at %s", RUNTIME.working_dir)
 
 
 def main() -> int:
@@ -413,7 +237,7 @@ def main() -> int:
         file_path = validate_input_file(args.file)
         asyncio.run(ingest(file_path, args.output_dir.expanduser().resolve()))
     except Exception as exc:
-        print(f"[ingest] FATAL: {exc}", file=sys.stderr)
+        LOGGER.error("FATAL: %s", exc)
         return 1
     return 0
 

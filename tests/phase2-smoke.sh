@@ -22,44 +22,19 @@ if [ "$CLEAN_RUNTIME" -eq 1 ]; then
   cp "$REPO_DIR"/rag-anything/scripts/*.sh "$RUNTIME_DIR/scripts/"
   cp "$REPO_DIR"/rag-anything/scripts/lib/*.sh "$RUNTIME_DIR/scripts/lib/"
   cp "$REPO_DIR"/rag-anything/requirements.txt "$RUNTIME_DIR/"
+  cp "$REPO_DIR"/rag-anything/requirements.lock "$RUNTIME_DIR/"
   cp "$REPO_DIR"/rag-anything/.env.example "$RUNTIME_DIR/.env"
   chmod +x "$RUNTIME_DIR"/scripts/*.sh "$RUNTIME_DIR"/scripts/*.py
 
-  python3 - "$RUNTIME_DIR/.env" "$DATA_DIR" <<'PY'
-from pathlib import Path
-import sys
-
-env = Path(sys.argv[1])
-data = Path(sys.argv[2])
-replacements = {
-    "RAGONFIRE_DATA_DIR": str(data),
-    "PGDATA_IMG": str(data / "pgdata.ext4.img"),
-    "PGDATA_IMG_CAP": "500M",
-    "INPUT_DIR": str(data / "input"),
-    "OUTPUT_DIR": str(data / "output"),
-    "WORKING_DIR": str(data / "working"),
-    "BACKUPS_DIR": str(data / "backups"),
-    "HF_HOME": str(data / "models/hf"),
-    "MINERU_MODELS_DIR": str(data / "models/mineru"),
-    # Internal SSD store (shared with prod): avoids re-pulling 11GB into the
-    # test sandbox and matches the runtime config (ollama weights off exFAT).
-    "OLLAMA_MODELS": str(Path.home() / ".ollama" / "models"),
-    "HOST_LOGS_DIR": str(data / "logs"),
-}
-lines = []
-for line in env.read_text().splitlines():
-    key = line.split("=", 1)[0] if "=" in line else None
-    if key in replacements:
-        lines.append(f"{key}={replacements[key]}")
-    else:
-        lines.append(line)
-env.write_text("\n".join(lines) + "\n")
-PY
+  python3 "$RUNTIME_DIR/scripts/render_env.py" "$RUNTIME_DIR/.env" \
+    --repo-root "$REPO_DIR" \
+    --data-dir "$DATA_DIR" \
+    --pgdata-img-cap 500M
 
   if [ ! -d "$RUNTIME_DIR/.venv" ]; then
     uv venv --python 3.12 "$RUNTIME_DIR/.venv"
   fi
-  uv pip install --python "$RUNTIME_DIR/.venv/bin/python" -r "$RUNTIME_DIR/requirements.txt"
+  uv pip install --python "$RUNTIME_DIR/.venv/bin/python" -r "$RUNTIME_DIR/requirements.lock"
 
   echo "[smoke] cleaning any stale compose state"
   LIGHTRAG_ENV_FILE="$RUNTIME_DIR/.env" docker compose -f "$REPO_DIR/infra/docker-compose.yml" \

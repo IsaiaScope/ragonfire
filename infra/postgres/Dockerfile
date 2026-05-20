@@ -1,9 +1,14 @@
-FROM pgvector/pgvector:pg16
-ARG AGE_VERSION=PG16/v1.5.0-rc0
+FROM pgvector/pgvector:pg16@sha256:00ba258a66dac104fd5171074a0084462a64a1369d8513f3d0a634e2f24d15bc
+ARG AGE_REF=0048900f372d4dfd5c236f78b8a8453bcdbb458e
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential git postgresql-server-dev-16 flex bison ca-certificates \
     util-linux e2fsprogs \
- && git clone --depth 1 --branch ${AGE_VERSION} https://github.com/apache/age.git /tmp/age \
+ && mkdir /tmp/age \
+ && cd /tmp/age \
+ && git init \
+ && git remote add origin https://github.com/apache/age.git \
+ && git fetch --depth 1 origin ${AGE_REF} \
+ && git checkout FETCH_HEAD \
  && cd /tmp/age && make install \
  && rm -rf /tmp/age \
  && apt-get purge -y build-essential git flex bison postgresql-server-dev-16 \
