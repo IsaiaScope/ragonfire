@@ -15,16 +15,19 @@ import sys
 env = Path(sys.argv[1])
 root = Path(sys.argv[2])
 repo = Path(sys.argv[3])
+# Paths consumed by Git Bash: write POSIX (forward-slash) form. On Windows,
+# str(Path) yields backslashes, which bash strips as escapes (e.g.
+# D:\a\repo -> Daarepo), breaking $REPO_DIR command substitution.
 replacements = {
     "PGDATA_IMG": "C:/ragonfire/pgdata.ext4.img",
-    "LOG_DIR": str(root / "logs"),
+    "LOG_DIR": (root / "logs").as_posix(),
     "LLM_MODEL": "qwen2.5vl:7b",
 }
 lines = []
 for line in env.read_text().splitlines():
     key = line.split("=", 1)[0] if "=" in line else None
     lines.append(f"{key}={replacements[key]}" if key in replacements else line)
-lines.append(f"RAGONFIRE_REPO_DIR={repo}")
+lines.append(f"RAGONFIRE_REPO_DIR={repo.as_posix()}")
 env.write_text("\n".join(lines) + "\n")
 PY
 
