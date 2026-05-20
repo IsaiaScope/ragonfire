@@ -64,7 +64,7 @@ echo "[smoke] ingest sample.pdf"
 echo "[smoke] querying"
 ANSWER=$(curl -sf -X POST "http://localhost:$PORT/query" \
   -H "Content-Type: application/json" \
-  -d '{"query": "What is the Marble Crocodile method?", "mode": "hybrid"}')
+  -d '{"query": "What is the Marble Crocodile method?", "mode": "hybrid", "enable_rerank": false}')
 echo "$ANSWER" | grep -iq "marble crocodile" \
   || { echo "[smoke] FAIL: known phrase missing from answer"; exit 1; }
 

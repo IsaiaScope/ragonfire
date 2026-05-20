@@ -12,6 +12,16 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 
+def quiet_dependency_warnings() -> None:
+    """Silence known noisy native-library warnings that do not affect ingest."""
+    os.environ.setdefault("ORT_LOG_SEVERITY_LEVEL", "3")
+    try:
+        import onnxruntime
+    except Exception:
+        return
+    onnxruntime.set_default_logger_severity(int(os.environ["ORT_LOG_SEVERITY_LEVEL"]))
+
+
 @dataclass(frozen=True)
 class IngestRuntime:
     working_dir: str
@@ -30,6 +40,7 @@ class IngestRuntime:
 
 
 def load_runtime_env(project_dir: Path) -> None:
+    quiet_dependency_warnings()
     load_dotenv(project_dir / ".env")
     if os.environ.get("POSTGRES_HOST_EXTERNAL"):
         os.environ["POSTGRES_HOST"] = os.environ["POSTGRES_HOST_EXTERNAL"]
@@ -143,6 +154,11 @@ DEFAULT_ENTITY_TYPES = [
 ]
 
 
+async def identity_rerank(query: str, documents: list[dict], top_n: int | None = None, **_kwargs) -> list[dict]:
+    """Satisfy LightRAG's rerank seam while preserving original chunk order."""
+    return documents
+
+
 def lightrag_kwargs() -> dict[str, object]:
     return {
         "kv_storage": os.environ.get("LIGHTRAG_KV_STORAGE", "JsonKVStorage"),
@@ -156,6 +172,8 @@ def lightrag_kwargs() -> dict[str, object]:
         "chunk_overlap_token_size": env_int("CHUNK_OVERLAP_SIZE", "100"),
         "embedding_batch_num": env_int("EMBEDDING_BATCH_NUM", "10"),
         "max_parallel_insert": env_int("MAX_PARALLEL_INSERT", "2"),
+        "rerank_model_func": identity_rerank,
+        "min_rerank_score": env_float("MIN_RERANK_SCORE", "0.0"),
         # Gleaning rounds re-prompt each chunk for missed entities. Each round is
         # an extra LLM call per chunk, so it dominates runtime. 1 balances recall
         # vs speed; raise to 2 for max recall on dense docs (slower).

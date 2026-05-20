@@ -96,6 +96,7 @@ class RuntimeHelperTests(unittest.TestCase):
     def test_lightrag_kwargs_are_typed(self) -> None:
         os.environ["TOP_K"] = "9"
         os.environ["COSINE_THRESHOLD"] = "0.42"
+        os.environ["MIN_RERANK_SCORE"] = "0.0"
         os.environ["CHUNK_SIZE"] = "700"
         os.environ["CHUNK_OVERLAP_SIZE"] = "70"
         os.environ["EMBEDDING_BATCH_NUM"] = "3"
@@ -111,6 +112,13 @@ class RuntimeHelperTests(unittest.TestCase):
         self.assertEqual(kwargs["chunk_overlap_token_size"], 70)
         self.assertEqual(kwargs["embedding_batch_num"], 3)
         self.assertEqual(kwargs["max_parallel_insert"], 4)
+        self.assertEqual(kwargs["min_rerank_score"], 0.0)
+        self.assertTrue(callable(kwargs["rerank_model_func"]))
+
+    def test_dependency_warning_defaults_are_quiet(self) -> None:
+        os.environ.pop("ORT_LOG_SEVERITY_LEVEL", None)
+        self.module.quiet_dependency_warnings()
+        self.assertEqual(os.environ["ORT_LOG_SEVERITY_LEVEL"], "3")
 
     def test_check_ollama_reports_recovery_hint(self) -> None:
         with mock.patch.object(self.module.urllib.request, "urlopen", side_effect=OSError("refused")):
