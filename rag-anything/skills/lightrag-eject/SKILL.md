@@ -1,6 +1,6 @@
 ---
 name: lightrag-eject
-description: Safely stop the entire RAG stack and eject the Crucial-4T drive. Use BEFORE physically unplugging the drive. Triggers on /lightrag-eject.
+description: Safely stop the entire RAG stack and eject the external drive. Use BEFORE physically unplugging the drive. Triggers on /lightrag-eject.
 ---
 
 # lightrag-eject

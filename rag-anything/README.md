@@ -65,7 +65,7 @@ What it does:
 
 ## Storage Backend
 
-Retrieval state lives in a single Postgres 16 container running pgvector + Apache AGE. The Postgres entrypoint mounts the ext4 loopback image before handing off to the official Postgres entrypoint, so the live data directory stays on the Crucial-4T drive:
+Retrieval state lives in a single Postgres 16 container running pgvector + Apache AGE. The Postgres entrypoint mounts the ext4 loopback image before handing off to the official Postgres entrypoint, so the live data directory stays on the external drive:
 
 ```
 <repo>/data/pgdata.ext4.img                         <- ext4 inside, ExFAT outside
@@ -101,14 +101,14 @@ LIGHTRAG_VECTOR_STORAGE=PGVectorStorage
 LIGHTRAG_GRAPH_STORAGE=PGGraphStorage
 LIGHTRAG_DOC_STATUS_STORAGE=PGDocStatusStorage
 
-RAGONFIRE_DATA_DIR=/Volumes/Crucial-4T/repo/ragonfire/data
-PGDATA_IMG=/Volumes/Crucial-4T/repo/ragonfire/data/pgdata.ext4.img
+RAGONFIRE_DATA_DIR=<repo>/data
+PGDATA_IMG=<repo>/data/pgdata.ext4.img
 PGDATA_IMG_CAP=50G
 
 LIGHTRAG_PORT_EXTERNAL=9622
 LIGHTRAG_PORT_INTERNAL=9621
 LOG_DIR=/var/log/lightrag
-HOST_LOGS_DIR=/Volumes/Crucial-4T/repo/ragonfire/data/logs
+HOST_LOGS_DIR=<repo>/data/logs
 
 LLM_BINDING=ollama
 LLM_BINDING_HOST=http://host.docker.internal:11434

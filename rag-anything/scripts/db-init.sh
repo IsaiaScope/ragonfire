@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Create the ext4 loopback image on Crucial-4T (or wherever PGDATA_IMG points).
+# Create the ext4 loopback image at PGDATA_IMG (typically on the external drive).
 # Idempotent: bails cleanly if the image already exists unless --force.
 # shellcheck disable=SC1090
 set -euo pipefail
