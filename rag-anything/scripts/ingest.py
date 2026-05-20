@@ -6,6 +6,10 @@ Usage:
 """
 from __future__ import annotations
 
+from native_warning_filter import install_native_warning_filter
+
+install_native_warning_filter()
+
 import argparse
 import asyncio
 import logging

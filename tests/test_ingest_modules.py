@@ -125,5 +125,25 @@ class RenderEnvTests(unittest.TestCase):
         self.assertEqual(updates["PGDATA_IMG_CAP"], "500M")
 
 
+class NativeWarningFilterTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.module = load_script_module("native_warning_filter")
+
+    def test_suppresses_known_onnxruntime_device_discovery_warning(self) -> None:
+        line = (
+            b'2026-05-20 20:49:22.498570723 '
+            b'[W:onnxruntime:Default, device_discovery.cc:133 GetPciBusId] '
+            b'Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00" '
+            b'because filename "5620e0c7" did not match expected pattern\n'
+        )
+
+        self.assertTrue(self.module.should_suppress_native_stderr_line(line))
+
+    def test_preserves_other_native_stderr_lines(self) -> None:
+        line = b"[E:onnxruntime:Default] real runtime failure\n"
+
+        self.assertFalse(self.module.should_suppress_native_stderr_line(line))
+
+
 if __name__ == "__main__":
     unittest.main()
