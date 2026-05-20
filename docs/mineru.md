@@ -1,9 +1,10 @@
-
-<h3 align="center">MinerU — Multimodal Document Parser</h3>
+<h3 align="center">MinerU — Multimodal Document Parser ⛏️</h3>
 
 <p align="center">
   <em>Turns PDFs, Office docs, and images into clean text + tables + equations + cropped image regions.</em>
 </p>
+
+<br />
 
 <p align="center">
   <img src="https://img.shields.io/badge/MinerU-2-2496ED?logoColor=white" alt="MinerU" />
@@ -126,3 +127,9 @@ MinerU is layout-bound. Each page runs a YOLO-style detector. Throughput scales 
 - Project: [opendatalab/MinerU](https://github.com/opendatalab/MinerU)
 - Paper: [arXiv:2409.18839](https://arxiv.org/abs/2409.18839)
 - License: AGPL-3.0
+
+---
+
+<p align="center">
+  Structure in, knowledge graph out. 🔥
+</p>

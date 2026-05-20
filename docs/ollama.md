@@ -1,9 +1,10 @@
-
-<h3 align="center">Ollama — Local Model Runtime</h3>
+<h3 align="center">Ollama — Local Model Runtime 🦙</h3>
 
 <p align="center">
-  <em>Serves the LLM (qwen2.5-vl) and the embedding model (bge-m3) entirely on your Mac's GPU.</em>
+  <em>Serves the LLM (qwen2.5-vl) and the embedding model (bge-m3) entirely on the host GPU.</em>
 </p>
+
+<br />
 
 <p align="center">
   <img src="https://img.shields.io/badge/Ollama-0.x-000000?logo=ollama&logoColor=white" alt="Ollama" />
@@ -116,3 +117,9 @@ For RagOnFire we keep defaults — they fit comfortably on 16 GB+ Apple Silicon 
 - Model library: [ollama.com/library](https://ollama.com/library)
 - qwen2.5-vl: [QwenLM/Qwen2.5-VL](https://github.com/QwenLM/Qwen2.5-VL)
 - bge-m3: [FlagOpen/FlagEmbedding](https://github.com/FlagOpen/FlagEmbedding)
+
+---
+
+<p align="center">
+  All inference local — no API keys, no cloud. 🔥
+</p>
