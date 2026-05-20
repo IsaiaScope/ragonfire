@@ -11,12 +11,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build pg-init + postgres images
+      - name: Static checks
         run: |
-          docker build -t pg-init infra/pg-init
+          bash -n rag-anything/bootstrap.sh rag-anything/scripts/*.sh rag-anything/scripts/lib/*.sh infra/os/*.sh infra/postgres/entrypoint-loop.sh tests/*.sh
+          python3 -m py_compile rag-anything/scripts/ingest.py rag-anything/scripts/ragonfire_runtime.py tests/test_ragonfire_runtime.py
+          python3 tests/test_ragonfire_runtime.py
+          bash tests/runtime-helper-test.sh
+
+      - name: Build postgres image
+        run: |
           docker build -t postgres infra/postgres
 
       - name: Create throwaway .img and run phase-1 smoke
         run: |
-          chmod +x scripts/phase1-smoke.sh
-          ./scripts/phase1-smoke.sh
+          chmod +x tests/phase1-smoke.sh
+          ./tests/phase1-smoke.sh

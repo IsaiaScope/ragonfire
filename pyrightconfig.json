@@ -1,0 +1,18 @@
+{
+  "venvPath": "/Users/isaia/rag-anything",
+  "venv": ".venv",
+  "pythonVersion": "3.12",
+  "pythonPlatform": "Darwin",
+  "include": [
+    "rag-anything/scripts"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/.venv",
+    "**/node_modules",
+    "ollama",
+    "mineru"
+  ],
+  "reportMissingImports": "error",
+  "reportMissingTypeStubs": "none"
+}

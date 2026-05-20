@@ -10,4 +10,4 @@ description: Boot the full RagOnFire stack - Ollama (native), Postgres (containe
 ```
 
 If the script reports a schema-version mismatch, run /lightrag-upgrade.
-If it reports the .img is missing, run scripts/db-init.sh.
+If it reports the .img is missing, run `~/rag-anything/scripts/db-init.sh`.

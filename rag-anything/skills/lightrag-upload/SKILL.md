@@ -17,7 +17,8 @@ Postgres handles concurrent ingest + query, so the server stays up during upload
 ## Configuration
 
 - **Server:** `http://localhost:9622`
-- **Project dir:** `~/rag-anything` (code), `~/rag-anything` (data)
+- **Runtime dir:** `~/rag-anything`
+- **Data dir:** `$RAGONFIRE_DATA_DIR` from `~/rag-anything/.env`
 
 ## Preflight: ensure server is up
 
@@ -80,6 +81,6 @@ User: "Add my research notes to the knowledge base" (provides file path)
 
 ## Error Handling
 
-- **Server unreachable** — run `/lightrag-start`. If still down, check `tail -30 ~/rag-anything/logs/server.log`.
+- **Server unreachable** — run `/lightrag-start`. If still down, run `/lightrag-status` and inspect `$HOST_LOGS_DIR`.
 - **Upload fails** — verify file exists and is text-based. For PDFs with visual content, use `/raganything-upload`.
 - **Pipeline stuck** — large files take minutes. Check `latest_message` for progress.

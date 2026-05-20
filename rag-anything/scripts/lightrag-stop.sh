@@ -2,21 +2,24 @@
 # Cleanly stops the whole stack so the drive can be ejected safely.
 set -euo pipefail
 
-RUNTIME_DIR="${RAGONFIRE_RUNTIME:-$HOME/rag-anything}"
-ENV_FILE="$RUNTIME_DIR/.env"
-[ -f "$ENV_FILE" ] || { echo "[stop] FATAL: $ENV_FILE missing" >&2; exit 1; }
-# shellcheck disable=SC1090
-set -a; source "$ENV_FILE"; set +a
-REPO_DIR="${RAGONFIRE_REPO_DIR:-$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd )}"
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/ragonfire.sh"
+rf_init stop
+rf_load_env
+rf_require_runtime_env
+rf_require_cmd docker
 
-COMPOSE="docker compose -f $REPO_DIR/infra/docker-compose.yml --env-file $ENV_FILE"
+rf_info "graceful compose down (PG checkpoint + loop unmount)"
+rf_compose down
 
-echo "[stop] graceful compose down (PG checkpoint + loop unmount)"
-LIGHTRAG_ENV_FILE="$ENV_FILE" $COMPOSE down
-
-if pgrep -x ollama >/dev/null; then
-  echo "[stop] unloading qwen2.5vl from Ollama"
-  ollama stop qwen2.5vl:7b 2>/dev/null || true
+if command -v pgrep >/dev/null 2>&1 && pgrep -x ollama >/dev/null; then
+  rf_info "unloading qwen2.5vl from Ollama"
+  command -v ollama >/dev/null 2>&1 && ollama stop qwen2.5vl:7b 2>/dev/null || true
 fi
 
-echo "[stop] OK"
+# macOS keeps writing AppleDouble shadows onto ExFAT while containers/ingests
+# run. Sweep them so the drive stays clean before eject.
+rf_strip_appledouble "$RAGONFIRE_DATA_DIR" "$REPO_DIR/infra"
+
+rf_info "OK"

@@ -57,18 +57,18 @@ What it does:
 | `~/rag-anything/.venv/` | Python venv on internal SSD |
 | `~/rag-anything/scripts/` | Lifecycle, backup, and ingest scripts |
 | `~/rag-anything/.env` | Runtime config |
-| `~/rag-anything/logs/` | Ollama/server logs |
-| `/Volumes/Crucial-4T/rag-anything/pgdata.ext4.img` | Portable Postgres data image |
-| `/Volumes/Crucial-4T/rag-anything/output/` | MinerU parsed artifacts |
-| `/Volumes/Crucial-4T/rag-anything/input/` | Batch ingest drop-zone |
-| `/Volumes/Crucial-4T/rag-anything/backups/` | pg_dump snapshots |
+| `$HOST_LOGS_DIR` | Ollama/server logs, defaulting under `<repo>/data/logs/` |
+| `<repo>/data/pgdata.ext4.img` | Portable Postgres data image |
+| `<repo>/data/output/` | MinerU parsed artifacts |
+| `<repo>/data/input/` | Batch ingest drop-zone |
+| `<repo>/data/backups/` | pg_dump snapshots |
 
 ## Storage Backend
 
-Retrieval state lives in a single Postgres 16 container running pgvector + Apache AGE. The Postgres data directory sits inside an ext4 loopback image on the Crucial-4T drive:
+Retrieval state lives in a single Postgres 16 container running pgvector + Apache AGE. The Postgres entrypoint mounts the ext4 loopback image before handing off to the official Postgres entrypoint, so the live data directory stays on the Crucial-4T drive:
 
 ```
-/Volumes/Crucial-4T/rag-anything/pgdata.ext4.img   <- ext4 inside, ExFAT outside
+<repo>/data/pgdata.ext4.img                         <- ext4 inside, ExFAT outside
                                                      started at 50 GB cap, growable
 ```
 
@@ -101,12 +101,14 @@ LIGHTRAG_VECTOR_STORAGE=PGVectorStorage
 LIGHTRAG_GRAPH_STORAGE=PGGraphStorage
 LIGHTRAG_DOC_STATUS_STORAGE=PGDocStatusStorage
 
-PGDATA_IMG=/Volumes/Crucial-4T/rag-anything/pgdata.ext4.img
+RAGONFIRE_DATA_DIR=/Volumes/Crucial-4T/repo/ragonfire/data
+PGDATA_IMG=/Volumes/Crucial-4T/repo/ragonfire/data/pgdata.ext4.img
 PGDATA_IMG_CAP=50G
 
 LIGHTRAG_PORT_EXTERNAL=9622
 LIGHTRAG_PORT_INTERNAL=9621
-LOG_DIR=/tmp/lightrag/logs
+LOG_DIR=/var/log/lightrag
+HOST_LOGS_DIR=/Volumes/Crucial-4T/repo/ragonfire/data/logs
 
 LLM_BINDING=ollama
 LLM_BINDING_HOST=http://host.docker.internal:11434

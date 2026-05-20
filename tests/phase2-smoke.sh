@@ -16,9 +16,10 @@ if [ "$CLEAN_RUNTIME" -eq 1 ]; then
   DATA_DIR=$(mktemp -d)
   trap 'LIGHTRAG_ENV_FILE="$RUNTIME_DIR/.env" docker compose -f "$REPO_DIR/infra/docker-compose.yml" --env-file "$RUNTIME_DIR/.env" down -v 2>/dev/null || true; rm -rf "$DATA_DIR"' EXIT
 
-  mkdir -p "$RUNTIME_DIR"/{scripts,logs}
+  mkdir -p "$RUNTIME_DIR"/{scripts,logs} "$RUNTIME_DIR/scripts/lib"
   cp "$REPO_DIR"/rag-anything/scripts/*.py "$RUNTIME_DIR/scripts/"
   cp "$REPO_DIR"/rag-anything/scripts/*.sh "$RUNTIME_DIR/scripts/"
+  cp "$REPO_DIR"/rag-anything/scripts/lib/*.sh "$RUNTIME_DIR/scripts/lib/"
   cp "$REPO_DIR"/rag-anything/requirements.txt "$RUNTIME_DIR/"
   cp "$REPO_DIR"/rag-anything/.env.example "$RUNTIME_DIR/.env"
   chmod +x "$RUNTIME_DIR"/scripts/*.sh "$RUNTIME_DIR"/scripts/*.py
@@ -30,6 +31,7 @@ import sys
 env = Path(sys.argv[1])
 data = Path(sys.argv[2])
 replacements = {
+    "RAGONFIRE_DATA_DIR": str(data),
     "PGDATA_IMG": str(data / "pgdata.ext4.img"),
     "PGDATA_IMG_CAP": "500M",
     "INPUT_DIR": str(data / "input"),
@@ -39,7 +41,7 @@ replacements = {
     "HF_HOME": str(data / "models/hf"),
     "MINERU_MODELS_DIR": str(data / "models/mineru"),
     "OLLAMA_MODELS": str(data / "models/ollama"),
-    "LOG_DIR": str(data / "logs"),
+    "HOST_LOGS_DIR": str(data / "logs"),
 }
 lines = []
 for line in env.read_text().splitlines():
@@ -55,7 +57,12 @@ PY
     uv venv --python 3.12 "$RUNTIME_DIR/.venv"
   fi
   uv pip install --python "$RUNTIME_DIR/.venv/bin/python" -r "$RUNTIME_DIR/requirements.txt"
-  PGDATA_IMG="$DATA_DIR/pgdata.ext4.img" PGDATA_IMG_CAP=500M RAGONFIRE_RUNTIME="$RUNTIME_DIR" \
+
+  echo "[smoke] cleaning any stale compose state"
+  LIGHTRAG_ENV_FILE="$RUNTIME_DIR/.env" docker compose -f "$REPO_DIR/infra/docker-compose.yml" \
+    --env-file "$RUNTIME_DIR/.env" down -v 2>/dev/null || true
+
+  RAGONFIRE_ENV_FILE="$RUNTIME_DIR/.env" RAGONFIRE_RUNTIME="$RUNTIME_DIR" \
     "$RUNTIME_DIR/scripts/db-init.sh"
   find "$REPO_DIR/infra" -name '._*' -delete
   LIGHTRAG_ENV_FILE="$RUNTIME_DIR/.env" docker compose -f "$REPO_DIR/infra/docker-compose.yml" \

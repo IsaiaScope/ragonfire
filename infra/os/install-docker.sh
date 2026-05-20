@@ -2,7 +2,11 @@
 # Verifies Docker is installed and the daemon is reachable.
 # Does NOT install Docker automatically (too risky to script across OSes).
 set -euo pipefail
-OS=$("$( dirname "${BASH_SOURCE[0]}" )/detect.sh")
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/../../rag-anything/scripts/lib/ragonfire.sh"
+rf_init docker
+OS=$("$SCRIPT_DIR/detect.sh")
 
 if ! command -v docker >/dev/null; then
   case "$OS" in
@@ -10,16 +14,14 @@ if ! command -v docker >/dev/null; then
     linux)  URL="https://docs.docker.com/engine/install/" ;;
     wsl)    URL="https://docs.docker.com/desktop/wsl/" ;;
   esac
-  echo "[docker] FATAL: docker not installed. Install: $URL" >&2
-  exit 1
+  rf_die "docker not installed. Install: $URL"
 fi
 
 if ! docker info >/dev/null 2>&1; then
-  echo "[docker] FATAL: docker daemon not running. Start Docker Desktop / dockerd." >&2
-  exit 1
+  rf_die "docker daemon not running. Start Docker Desktop / dockerd."
 fi
 
 docker compose version >/dev/null 2>&1 \
-  || { echo "[docker] FATAL: 'docker compose' plugin missing" >&2; exit 1; }
+  || rf_die "'docker compose' plugin missing"
 
-echo "[docker] ready: $(docker --version)"
+rf_info "ready: $(docker --version)"

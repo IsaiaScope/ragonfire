@@ -2,6 +2,10 @@
 # Prints "mps", "cuda", or "cpu" based on local torch capabilities.
 # Reads from the host venv at $RAGONFIRE_RUNTIME/.venv.
 set -euo pipefail
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/ragonfire.sh"
+rf_init mineru-device
 RUNTIME_DIR="${RAGONFIRE_RUNTIME:-$HOME/rag-anything}"
 PYTHON="$RUNTIME_DIR/.venv/bin/python"
 

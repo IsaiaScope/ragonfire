@@ -21,8 +21,8 @@
 
 RagOnFire stitches three open-source pieces into one local knowledge base:
 
-- [Ollama](ollama/) runs an LLM and embedding model natively for GPU access.
-- [MinerU](mineru/) parses PDFs, Office docs, images, tables, equations, and OCR into structured artifacts.
+- [Ollama](docs/ollama.md) runs an LLM and embedding model natively for GPU access.
+- [MinerU](docs/mineru.md) parses PDFs, Office docs, images, tables, equations, and OCR into structured artifacts.
 - [RAG-Anything](rag-anything/) orchestrates multimodal ingest on top of LightRAG hybrid vector + graph retrieval.
 
 Retrieval state lives in Postgres 16 with pgvector and Apache AGE. The Postgres data directory sits inside an ext4 loopback image on the external drive, so the same drive can move between macOS, Linux, and WSL2 without re-ingesting.
@@ -46,8 +46,8 @@ LightRAG server container :9622
 
 | Module | Role |
 |--------|------|
-| [ollama/](ollama/) | LLM + embedding runtime: `qwen2.5vl:7b` and `bge-m3` |
-| [mineru/](mineru/) | Document parser: PDF/DOCX/PPTX/XLSX -> text, tables, equations, images |
+| [docs/ollama.md](docs/ollama.md) | LLM + embedding runtime: `qwen2.5vl:7b` and `bge-m3` |
+| [docs/mineru.md](docs/mineru.md) | Document parser: PDF/DOCX/PPTX/XLSX -> text, tables, equations, images |
 | [rag-anything/](rag-anything/) | Pipeline, Docker stack, lifecycle scripts, and 13 agent skills |
 
 ## Quickstart
@@ -115,7 +115,6 @@ ragonfire/
 ├── infra/
 │   ├── docker-compose.yml
 │   ├── lightrag-server/
-│   ├── pg-init/
 │   ├── postgres/
 │   └── os/
 ├── rag-anything/
@@ -124,10 +123,19 @@ ragonfire/
 │   ├── scripts/
 │   └── skills/
 ├── scripts/
-│   ├── install-skills.sh
+│   └── install-skills.sh
+├── tests/
+│   ├── fixtures/
 │   ├── phase1-smoke.sh
 │   └── phase2-smoke.sh
-└── tests/fixtures/
+├── docs/
+│   ├── ollama.md
+│   ├── mineru.md
+│   └── superpowers/
+└── data/                       # gitignored, populated at runtime
+    ├── pgdata.ext4.img         # 50G ext4 loopback (Postgres data)
+    ├── ollama/  hf/  mineru/   # model caches
+    └── input/ output/ working/ backups/
 ```
 
 ## Runtime Locations
@@ -137,19 +145,20 @@ All paths are configurable via `~/rag-anything/.env` after bootstrap.
 | What | Default path |
 |------|--------------|
 | Runtime scripts + venv | `~/rag-anything/` |
-| Postgres image | `/Volumes/Crucial-4T/rag-anything/pgdata.ext4.img` |
-| Parsed artifacts | `/Volumes/Crucial-4T/rag-anything/output/` |
-| Batch ingest drop-zone | `/Volumes/Crucial-4T/rag-anything/input/` |
-| Backups | `/Volumes/Crucial-4T/rag-anything/backups/` |
-| Ollama models | `/Volumes/Crucial-4T/rag-anything/models/ollama/` |
-| HF/MinerU caches | `/Volumes/Crucial-4T/rag-anything/models/` |
+| Data root | `<repo>/data/` |
+| Postgres image | `<repo>/data/pgdata.ext4.img` |
+| Parsed artifacts | `<repo>/data/output/` |
+| Batch ingest drop-zone | `<repo>/data/input/` |
+| Backups | `<repo>/data/backups/` |
+| Ollama models | `<repo>/data/ollama/` |
+| HF/MinerU caches | `<repo>/data/hf/`, `<repo>/data/mineru/` |
 
 ## Requirements
 
 - **Docker** (Desktop on macOS/Windows, engine on Linux) - runs Postgres + LightRAG server.
 - **Ollama** (native - installed automatically by `bootstrap.sh` via brew on macOS, the official install script on Linux, or manual install on WSL2).
 - **Apple Silicon / NVIDIA GPU recommended** for fast inference. CPU fallback works but is slow.
-- **~20 GB free internal SSD** for Docker images + Python venv. The 50 GB Postgres image, model caches, and parsed artifacts live on the external drive (Crucial-4T by default).
+- **~20 GB free internal SSD** for Docker images + Python venv. The 50 GB Postgres image, model caches, and parsed artifacts live under the repo-root `data/` directory on the external drive.
 - **External drive** formatted ExFAT is fine - Postgres data lives inside an ext4 loopback image so POSIX semantics are preserved.
 - **Python 3.12** + **uv** for the host venv (installed by `bootstrap.sh`).
 

@@ -23,7 +23,7 @@ PDF, DOCX, PPTX, XLSX, JPG, PNG, BMP, TIFF, GIF, WebP, TXT, MD.
 
 ## Error Handling
 
-- `ModuleNotFoundError: raganything` - venv not installed. Run `~/rag-anything/bootstrap.sh`.
+- `ModuleNotFoundError: raganything` - venv not installed. Run the repo's `rag-anything/bootstrap.sh`.
 - `Connection refused: 11434` - Ollama is down. Run `/lightrag-start`, then retry.
 - MinerU model download on first run can take several minutes.
 - MPS/CUDA memory pressure - set `MINERU_DEVICE=cpu` in `.env`.

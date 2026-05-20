@@ -6,30 +6,14 @@
 $RECYCLE.BIN/
 
 # --- Big binary data (do NOT push) ---
+# All runtime data lives under /data/: pgdata.ext4.img, ollama/, hf/, mineru/,
+# input/, output/, working/, backups/. Fully gitignored — re-created on bootstrap
+# (dirs) or downloaded on first use (models). Documentation for ollama/mineru
+# lives in docs/{ollama,mineru}.md.
+/data/
 
-# Ollama runtime — models + state. ~/.ollama symlinks here when models live in repo.
-# id_ed25519 is the Ollama private signing key — NEVER commit.
-ollama/models/
-ollama/blobs/
-ollama/manifests/
-ollama/cache/
-ollama/history
-ollama/id_ed25519
-ollama/id_ed25519.pub
-ollama/.fseventsd/
-
-# MinerU models — first ingest downloads ~5 GB via HF Hub + ModelScope
-mineru/models/
-mineru/cache/
-mineru/huggingface/
-mineru/modelscope/
-mineru/.cache/
-
-# RAG-Anything runtime
+# RAG-Anything runtime (host-local)
 rag-anything/.venv/
-rag-anything/storage/
-rag-anything/output/
-rag-anything/input/
 rag-anything/logs/
 rag-anything/.env
 
