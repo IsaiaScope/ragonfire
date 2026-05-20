@@ -89,7 +89,18 @@ rf_load_env_file() {
   source "$ENV_FILE"
   set +a
 
-  REPO_DIR="${RAGONFIRE_REPO_DIR:-$(rf_script_repo_fallback)}"
+  # Prefer the repo root derived from this script's own location: when infra/
+  # sits beside the scripts (CI, dev checkout) that is authoritative and any
+  # RAGONFIRE_REPO_DIR carried in .env/.env.example (e.g. a foreign Crucial-4T
+  # path) must NOT win. Only when scripts were copied out to the runtime
+  # (~/rag-anything, no infra/ sibling) do we trust the stamped env value.
+  local fallback_repo
+  fallback_repo="$(rf_script_repo_fallback)"
+  if [ -f "$fallback_repo/infra/os/detect.sh" ]; then
+    REPO_DIR="$fallback_repo"
+  else
+    REPO_DIR="${RAGONFIRE_REPO_DIR:-$fallback_repo}"
+  fi
   RAGONFIRE_REPO_DIR="$REPO_DIR"
   RAGONFIRE_DATA_DIR="${RAGONFIRE_DATA_DIR:-$REPO_DIR/data}"
 
