@@ -40,6 +40,23 @@ fi
 rf_info "stopping lightrag-server before restore if running"
 rf_compose stop lightrag-server >/dev/null 2>&1 || true
 
+# The snapshot is a self-contained plain dump: it recreates ag_catalog, the AGE
+# extension, the graph schema and every lightrag_* table with no IF NOT EXISTS
+# guards. The live DB was pre-seeded by init.sql (AGE + vector), so a replay
+# collides on the first CREATE (ON_ERROR_STOP aborts). Reset to an empty DB
+# first so the dump is authoritative. Only under --force (drops all data).
+if [ "$FORCE" -eq 1 ]; then
+  rf_info "resetting target DB before replay (--force)"
+  docker exec -i ragonfire-postgres \
+    psql -U "$POSTGRES_USER" -d "$POSTGRES_DATABASE" -v ON_ERROR_STOP=1 <<'SQL'
+DROP SCHEMA IF EXISTS chunk_entity_relation CASCADE;
+DROP EXTENSION IF EXISTS age CASCADE;
+DROP SCHEMA IF EXISTS ag_catalog CASCADE;
+DROP SCHEMA IF EXISTS public CASCADE;
+CREATE SCHEMA public;
+SQL
+fi
+
 rf_info "restoring $TARGET into $POSTGRES_DATABASE"
 gunzip -c "$TARGET" | docker exec -i ragonfire-postgres \
   psql -U "$POSTGRES_USER" -d "$POSTGRES_DATABASE" -v ON_ERROR_STOP=1
