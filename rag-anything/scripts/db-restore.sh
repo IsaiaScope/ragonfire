@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Restore from a named or latest snapshot. Refuses if DB has user tables unless --force.
+# shellcheck disable=SC1091
 set -euo pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # shellcheck disable=SC1091

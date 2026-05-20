@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Ingest sample.pdf, query, assert known phrase appears, assert graph has entities.
+# shellcheck disable=SC1091
 set -euo pipefail
 REPO_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 export COPYFILE_DISABLE=1
@@ -66,13 +67,14 @@ PY
 
   RAGONFIRE_ENV_FILE="$RUNTIME_DIR/.env" RAGONFIRE_RUNTIME="$RUNTIME_DIR" \
     "$RUNTIME_DIR/scripts/db-init.sh"
-  find "$REPO_DIR/infra" -name '._*' -delete
+  if [ "$("$REPO_DIR/infra/os/detect.sh")" = "darwin" ]; then
+    find "$REPO_DIR/infra" -name '._*' -delete
+  fi
   LIGHTRAG_ENV_FILE="$RUNTIME_DIR/.env" docker compose -f "$REPO_DIR/infra/docker-compose.yml" \
     --env-file "$RUNTIME_DIR/.env" build
 fi
 
 export RAGONFIRE_RUNTIME="$RUNTIME_DIR"
-# shellcheck disable=SC1090
 set -a; source "$RUNTIME_DIR/.env"; set +a
 
 PORT="${LIGHTRAG_PORT_EXTERNAL:-9622}"

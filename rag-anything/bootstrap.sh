@@ -6,6 +6,7 @@
 #   ./bootstrap.sh --agent codex
 #   ./bootstrap.sh --agent all
 #   ./bootstrap.sh --skip-skills
+# shellcheck disable=SC1091
 set -euo pipefail
 export COPYFILE_DISABLE=1
 
@@ -16,6 +17,7 @@ PYTHON_VERSION="3.12"
 LLM_MODEL="qwen2.5vl:7b"       # vision/image extraction
 EXTRACTION_MODEL="qwen2.5:7b"  # text entity extraction (LightRAG tuple format)
 EMBED_MODEL="bge-m3"
+RF_OS=$("$REPO_ROOT/infra/os/detect.sh")
 
 log() { printf "\033[1;36m[bootstrap]\033[0m %s\n" "$*"; }
 err() { printf "\033[1;31m[error]\033[0m %s\n" "$*" >&2; exit 1; }
@@ -33,6 +35,13 @@ while [[ $# -gt 0 ]]; do
     *) err "unknown arg: $1" ;;
   esac
 done
+
+if [ "$RF_OS" = "windows" ]; then
+  case "$(uname -s)" in
+    MINGW*|MSYS*) ;;
+    *) err "Windows native bootstrap must run from Git Bash, not PowerShell/CMD/WSL." ;;
+  esac
+fi
 
 "$REPO_ROOT/infra/os/install-docker.sh"
 "$REPO_ROOT/infra/os/install-uv.sh"
@@ -129,8 +138,10 @@ uv pip install --python "$RUNTIME_DIR/.venv/bin/python" -r "$RUNTIME_DIR/require
 "$RUNTIME_DIR/scripts/db-init.sh"
 
 log "building docker images"
-find "$REPO_ROOT/infra" -name '._*' -delete
-LIGHTRAG_ENV_FILE="$RUNTIME_DIR/.env" docker compose -f "$REPO_ROOT/infra/docker-compose.yml" --env-file "$RUNTIME_DIR/.env" build
+if [ "$RF_OS" = "darwin" ]; then
+  find "$REPO_ROOT/infra" -name '._*' -delete
+fi
+MSYS_NO_PATHCONV=1 LIGHTRAG_ENV_FILE="$RUNTIME_DIR/.env" docker compose -f "$REPO_ROOT/infra/docker-compose.yml" --env-file "$RUNTIME_DIR/.env" build
 
 if [ "$SKIP_SKILLS" -eq 1 ]; then
   log "skipping skills install"

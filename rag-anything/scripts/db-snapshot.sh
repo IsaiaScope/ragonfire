@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # pg_dump | gzip > $BACKUPS_DIR/pgdump-YYYYMMDD-HHMMSS.sql.gz
+# shellcheck disable=SC1091
 set -euo pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # shellcheck disable=SC1091

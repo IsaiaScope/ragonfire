@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Stops the stack, grows the loopback image, resizes ext4, restarts.
+# shellcheck disable=SC1091
 set -euo pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # shellcheck disable=SC1091
@@ -32,7 +33,7 @@ rf_info "extending file to $NEW_SIZE"
 rf_run truncate -s "$NEW_SIZE" "$PGDATA_IMG"
 
 rf_info "fsck + resize2fs (inside helper container)"
-rf_run docker run --rm -v "$PGDATA_IMG:/img" alpine:3.20 sh -c \
+MSYS_NO_PATHCONV=1 rf_run docker run --rm -v "$PGDATA_IMG:/img" alpine:3.20 sh -c \
   "apk add --no-cache --quiet e2fsprogs >/dev/null && e2fsck -f -y /img && resize2fs /img"
 
 rf_info "restarting"

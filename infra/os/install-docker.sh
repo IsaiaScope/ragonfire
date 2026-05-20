@@ -13,11 +13,18 @@ if ! command -v docker >/dev/null; then
     darwin) URL="https://docs.docker.com/desktop/install/mac-install/" ;;
     linux)  URL="https://docs.docker.com/engine/install/" ;;
     wsl)    URL="https://docs.docker.com/desktop/wsl/" ;;
+    windows) URL="https://docs.docker.com/desktop/install/windows-install/" ;;
   esac
+  if [ "$OS" = "windows" ]; then
+    rf_die "docker not installed. Install: $URL. Windows native requires Docker Desktop with the WSL2 backend enabled."
+  fi
   rf_die "docker not installed. Install: $URL"
 fi
 
 if ! docker info >/dev/null 2>&1; then
+  if [ "$OS" = "windows" ]; then
+    rf_die "docker daemon not running. Start Docker Desktop and confirm it is using the WSL2 backend, not Hyper-V."
+  fi
   rf_die "docker daemon not running. Start Docker Desktop / dockerd."
 fi
 

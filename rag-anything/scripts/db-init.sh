@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Create the ext4 loopback image on Crucial-4T (or wherever PGDATA_IMG points).
 # Idempotent: bails cleanly if the image already exists unless --force.
+# shellcheck disable=SC1090
 set -euo pipefail
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -39,7 +40,7 @@ rf_info "allocating $PGDATA_IMG_CAP at $PGDATA_IMG"
 rf_run truncate -s "$PGDATA_IMG_CAP" "$PGDATA_IMG"
 
 rf_info "formatting ext4 inside the image (via helper container)"
-rf_run docker run --rm -v "$PGDATA_IMG:/img" alpine:3.20 sh -c \
+MSYS_NO_PATHCONV=1 rf_run docker run --rm -v "$PGDATA_IMG:/img" alpine:3.20 sh -c \
   "apk add --no-cache --quiet e2fsprogs >/dev/null && mkfs.ext4 -F -L ragonfire-pgdata /img"
 
 rf_info "done. Next: /lightrag-start"

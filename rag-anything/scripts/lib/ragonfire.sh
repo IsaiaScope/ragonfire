@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Shared helpers for RagOnFire shell entrypoints.
 # Source this file after `set -euo pipefail`.
 
@@ -83,8 +84,10 @@ rf_load_env_or_example() {
 
 rf_load_env_file() {
   ENV_FILE="$1"
+  set -a
   # shellcheck disable=SC1090
-  set -a; source "$ENV_FILE"; set +a
+  source "$ENV_FILE"
+  set +a
 
   REPO_DIR="${RAGONFIRE_REPO_DIR:-$(rf_script_repo_fallback)}"
   RAGONFIRE_REPO_DIR="$REPO_DIR"
@@ -102,10 +105,11 @@ rf_load_env_file() {
   PGDATA_IMG="${PGDATA_IMG:-$RAGONFIRE_DATA_DIR/pgdata.ext4.img}"
   HOST_LOGS_DIR="${HOST_LOGS_DIR:-$RAGONFIRE_DATA_DIR/logs}"
   LOG_DIR="${LOG_DIR:-/var/log/lightrag}"
+  RF_OS="${RF_OS:-$("$REPO_DIR/infra/os/detect.sh")}"
 
   export REPO_DIR RUNTIME_DIR ENV_FILE RAGONFIRE_REPO_DIR RAGONFIRE_DATA_DIR
   export INPUT_DIR OUTPUT_DIR WORKING_DIR BACKUPS_DIR OLLAMA_MODELS HF_HOME
-  export MINERU_MODELS_DIR PGDATA_IMG HOST_LOGS_DIR LOG_DIR
+  export MINERU_MODELS_DIR PGDATA_IMG HOST_LOGS_DIR LOG_DIR RF_OS
 }
 
 rf_require_runtime_env() {
@@ -190,12 +194,74 @@ PY
 }
 
 rf_strip_appledouble() {
+  [ "${RF_OS:-}" = "darwin" ] || return 0
+
   local path
   for path in "$@"; do
     [ -e "$path" ] || continue
     rf_info "cleaning AppleDouble files under $path"
     find "$path" -name '._*' -delete 2>/dev/null || true
   done
+}
+
+rf_ollama_running() {
+  case "${RF_OS:-}" in
+    windows)
+      tasklist /FI "IMAGENAME eq ollama.exe" 2>/dev/null | grep -qi "^ollama.exe"
+      ;;
+    *)
+      command -v pgrep >/dev/null 2>&1 && pgrep -x ollama >/dev/null
+      ;;
+  esac
+}
+
+rf_ollama_serve_bg() {
+  case "${RF_OS:-}" in
+    windows)
+      powershell -NoProfile -Command "Start-Process -WindowStyle Hidden ollama 'serve'"
+      ;;
+    *)
+      rf_run mkdir -p "$HOST_LOGS_DIR"
+      nohup ollama serve >"$HOST_LOGS_DIR/ollama.log" 2>&1 &
+      ;;
+  esac
+}
+
+rf_ollama_stop_model() {
+  local model="$1"
+  command -v ollama >/dev/null 2>&1 && ollama stop "$model" 2>/dev/null || true
+}
+
+rf_eject_drive() {
+  local drive_root="$1"
+  local dev letter
+
+  case "${RF_OS:-}" in
+    darwin)
+      rf_run diskutil eject "$drive_root"
+      ;;
+    linux|wsl)
+      dev=$(findmnt -no SOURCE "$drive_root" || true)
+      if [ -n "$dev" ]; then
+        rf_run udisksctl unmount -b "$dev"
+        rf_run udisksctl power-off -b "$dev"
+      else
+        rf_warn "manual unmount required: umount $drive_root"
+      fi
+      ;;
+    windows)
+      letter=$(printf '%s' "$drive_root" | sed -E 's@^/?([A-Za-z]):?.*@\1@')
+      if [ -z "$letter" ] || [ "$letter" = "$drive_root" ]; then
+        rf_warn "manual eject required: $drive_root"
+        return 0
+      fi
+      rf_run powershell -NoProfile -Command \
+        "(New-Object -ComObject Shell.Application).Namespace(17).ParseName('${letter}:').InvokeVerb('Eject')"
+      ;;
+    *)
+      rf_warn "manual eject required for unsupported OS '${RF_OS:-unknown}': $drive_root"
+      ;;
+  esac
 }
 
 rf_tail_file() {

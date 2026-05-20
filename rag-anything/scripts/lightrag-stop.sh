@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Cleanly stops the whole stack so the drive can be ejected safely.
+# shellcheck disable=SC1091
 set -euo pipefail
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -13,9 +14,9 @@ rf_require_cmd docker
 rf_info "graceful compose down (PG checkpoint + loop unmount)"
 rf_compose down
 
-if command -v pgrep >/dev/null 2>&1 && pgrep -x ollama >/dev/null; then
-  rf_info "unloading qwen2.5vl from Ollama"
-  command -v ollama >/dev/null 2>&1 && ollama stop qwen2.5vl:7b 2>/dev/null || true
+if rf_ollama_running; then
+  rf_info "unloading $LLM_MODEL from Ollama"
+  rf_ollama_stop_model "$LLM_MODEL"
 fi
 
 # macOS keeps writing AppleDouble shadows onto ExFAT while containers/ingests

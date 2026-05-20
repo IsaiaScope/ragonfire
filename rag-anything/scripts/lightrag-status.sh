@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Quick health snapshot of the whole stack.
+# shellcheck disable=SC1091
 set -euo pipefail
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -14,7 +15,7 @@ rf_info "runtime: $RUNTIME_DIR"
 rf_info "data: $RAGONFIRE_DATA_DIR"
 
 echo "=== Ollama ==="
-command -v pgrep >/dev/null 2>&1 && pgrep -x ollama >/dev/null && echo "daemon: running" || echo "daemon: STOPPED"
+rf_ollama_running && echo "daemon: running" || echo "daemon: STOPPED"
 command -v curl >/dev/null 2>&1 && curl -sf http://localhost:11434/api/tags >/dev/null && echo "api: 200" || echo "api: DOWN"
 
 echo
@@ -41,6 +42,7 @@ command -v curl >/dev/null 2>&1 && curl -sf "http://localhost:${LIGHTRAG_PORT_EX
 
 echo
 echo "=== Disk ==="
+# shellcheck disable=SC2012
 [ -f "$PGDATA_IMG" ] && ls -lh "$PGDATA_IMG" | awk '{print "pgdata.img:", $5, $9}' \
   || echo "pgdata.img: MISSING"
 [ -d "$HOST_LOGS_DIR" ] && echo "logs: $HOST_LOGS_DIR" || echo "logs: MISSING ($HOST_LOGS_DIR)"

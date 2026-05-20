@@ -22,7 +22,9 @@ LIGHTRAG_ENV_FILE="$TMP_ENV" docker compose -f "$REPO_DIR/infra/docker-compose.y
 RAGONFIRE_ENV_FILE="$TMP_ENV" RAGONFIRE_RUNTIME="$(dirname "$TMP_IMG")" \
   "$REPO_DIR/rag-anything/scripts/db-init.sh"
 
-find "$REPO_DIR/infra" -name '._*' -delete
+if [ "$("$REPO_DIR/infra/os/detect.sh")" = "darwin" ]; then
+  find "$REPO_DIR/infra" -name '._*' -delete
+fi
 LIGHTRAG_ENV_FILE="$TMP_ENV" docker compose -f "$REPO_DIR/infra/docker-compose.yml" --env-file "$TMP_ENV" up -d --build postgres
 echo "[smoke] waiting for postgres health..."
 for _ in $(seq 1 30); do

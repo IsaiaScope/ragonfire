@@ -18,6 +18,9 @@ case "$OS" in
   linux|wsl)
     rf_info "installing via official Ollama installer"
     curl -fsSL https://ollama.com/install.sh | sh ;;
+  windows)
+    command -v winget >/dev/null || { echo "[ollama] FATAL: winget required on Windows. Install Ollama from https://ollama.com/download/windows" >&2; exit 1; }
+    winget install --id Ollama.Ollama -e ;;
 esac
 
 case "$OS" in
@@ -28,6 +31,7 @@ case "$OS" in
     else
       nohup ollama serve >/tmp/ollama.log 2>&1 &
     fi ;;
+  windows) ;;
 esac
 
 for _ in $(seq 1 15); do

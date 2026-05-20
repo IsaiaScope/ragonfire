@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Boots the whole stack: Ollama (native) + Postgres (container) + LightRAG (container).
 # Verifies schema version stamp matches the pinned lightrag-hku version.
+# shellcheck disable=SC1091
 set -euo pipefail
 export COPYFILE_DISABLE=1
 
@@ -10,14 +11,14 @@ source "$SCRIPT_DIR/lib/ragonfire.sh"
 rf_init start
 rf_load_env
 rf_require_runtime_env
-rf_require_cmds curl docker grep ollama pgrep sed
+rf_require_cmds curl docker grep ollama sed
 rf_ensure_data_dirs
 
 rf_require_file "$PGDATA_IMG" "$PGDATA_IMG missing - run scripts/db-init.sh first"
 
-if ! pgrep -x ollama >/dev/null; then
+if ! rf_ollama_running; then
   rf_info "launching ollama serve in background; log: $HOST_LOGS_DIR/ollama.log"
-  nohup ollama serve >"$HOST_LOGS_DIR/ollama.log" 2>&1 &
+  rf_ollama_serve_bg
   sleep 2
 fi
 rf_wait_http "ollama" "http://localhost:11434/api/tags" 15 1

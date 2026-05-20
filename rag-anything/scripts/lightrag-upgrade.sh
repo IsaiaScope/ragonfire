@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Snapshots, wipes .img, re-inits, re-ingests everything in INPUT_DIR,
 # then bumps lightrag_meta.lightrag_version to the new pin.
+# shellcheck disable=SC1091
 set -euo pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # shellcheck disable=SC1091

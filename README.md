@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/MinerU-2-2496ED?logoColor=white" alt="MinerU" />
   <img src="https://img.shields.io/badge/qwen2.5--vl-7B-1C7CFF?logoColor=white" alt="qwen2.5-vl" />
   <img src="https://img.shields.io/badge/bge--m3-1024d-7C3AED?logoColor=white" alt="bge-m3" />
-  <img src="https://img.shields.io/badge/OS-macOS%20%7C%20Linux%20%7C%20WSL2-555?logoColor=white" alt="OS" />
+  <img src="https://img.shields.io/badge/OS-macOS%20%7C%20Linux%20%7C%20Windows%20%7C%20WSL2-555?logoColor=white" alt="OS" />
   <img src="https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
 </p>
 
@@ -25,7 +25,7 @@ RagOnFire stitches three open-source pieces into one local knowledge base:
 - [MinerU](docs/mineru.md) parses PDFs, Office docs, images, tables, equations, and OCR into structured artifacts.
 - [RAG-Anything](rag-anything/) orchestrates multimodal ingest on top of LightRAG hybrid vector + graph retrieval.
 
-Retrieval state lives in Postgres 16 with pgvector and Apache AGE. The Postgres data directory sits inside an ext4 loopback image on the external drive, so the same drive can move between macOS, Linux, and WSL2 without re-ingesting.
+Retrieval state lives in Postgres 16 with pgvector and Apache AGE. The Postgres data directory sits inside an ext4 loopback image on the external drive, so the same drive can move between macOS, Linux, Windows native, and WSL2 without re-ingesting.
 
 ## Stack At A Glance
 
@@ -68,6 +68,8 @@ The same vectors, graph, and KV come up. No re-ingest.
 
 ### Full install
 
+#### macOS / Linux
+
 ```bash
 git clone https://github.com/IsaiaScope/ragonfire.git
 cd ragonfire
@@ -81,6 +83,48 @@ cd ragonfire
 /lightrag-query "What are the main findings?"
 /lightrag-eject
 ```
+
+#### Windows native
+
+Use this path when you want to stay in Windows tooling and Git Bash.
+
+Requirements:
+
+- Git for Windows, using Git Bash as the shell.
+- Docker Desktop with the WSL2 backend enabled. Hyper-V backend is not supported.
+- Ollama for Windows. `bootstrap.sh` can install it through `winget` when available.
+
+```bash
+git clone https://github.com/IsaiaScope/ragonfire.git
+cd ragonfire
+
+./rag-anything/bootstrap.sh
+/lightrag-start
+```
+
+Docker Desktop still uses a hidden WSL2 backend for Linux containers, but you do not need to install or work inside a WSL2 distro for this path.
+
+#### WSL2
+
+Use this path when you already work from a Linux shell inside WSL2.
+
+Requirements:
+
+- Ubuntu 22.04+ or another glibc-based WSL2 distro.
+- Docker Desktop with WSL integration enabled, or native `docker-ce` inside the distro.
+- Ollama installed inside the WSL2 distro via `https://ollama.com/install.sh`. Avoid running the Windows-side Ollama service at the same time because both use port `11434`.
+
+```bash
+git clone https://github.com/IsaiaScope/ragonfire.git
+cd ragonfire
+
+./rag-anything/bootstrap.sh
+/lightrag-start
+```
+
+Skills install under the home directory of the shell you run from. Git Bash maps `$HOME` to `%USERPROFILE%`; WSL2 uses `/home/<user>`.
+
+> Which path do I want? Windows native is simpler if you already use Git Bash and Windows tooling. WSL2 is simpler if you already live in a Linux shell.
 
 ### Skills only
 
@@ -127,7 +171,9 @@ ragonfire/
 ├── tests/
 │   ├── fixtures/
 │   ├── phase1-smoke.sh
-│   └── phase2-smoke.sh
+│   ├── phase2-smoke.sh
+│   ├── phase3-windows-smoke.sh
+│   └── phase4-wsl2-smoke.sh
 ├── docs/
 │   ├── ollama.md
 │   ├── mineru.md
@@ -161,8 +207,8 @@ All paths are configurable via `~/rag-anything/.env` after bootstrap.
 
 ## Requirements
 
-- **Docker** (Desktop on macOS/Windows, engine on Linux) - runs Postgres + LightRAG server.
-- **Ollama** (native - installed automatically by `bootstrap.sh` via brew on macOS, the official install script on Linux, or manual install on WSL2).
+- **Docker** runs Postgres + LightRAG server. Use Docker Desktop on macOS and Windows native, Docker Desktop WSL integration or native `docker-ce` on WSL2, and Docker Engine on Linux.
+- **Ollama** runs natively on the host OS. `bootstrap.sh` installs via Homebrew on macOS, the official install script on Linux/WSL2, or `winget` on Windows native.
 - **Apple Silicon / NVIDIA GPU recommended** for fast inference. CPU fallback works but is slow.
 - **~20 GB free internal SSD** for Docker images + Python venv. The 50 GB Postgres image, model caches, and parsed artifacts live under the repo-root `data/` directory on the external drive.
 - **External drive** formatted ExFAT is fine - Postgres data lives inside an ext4 loopback image so POSIX semantics are preserved.
