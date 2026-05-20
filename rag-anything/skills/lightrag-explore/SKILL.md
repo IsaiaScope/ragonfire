@@ -19,11 +19,15 @@ curl -sf http://localhost:9622/health >/dev/null || { echo "Server down — run 
 
 ## Step 1 — Find entities matching the topic
 
+LightRAG 1.4.5 has no server-side label search endpoint. Pull the full label
+list and filter client-side (case-insensitive substring):
+
 ```bash
-curl -s "http://localhost:9622/graph/label/search?q=SEARCH_TERM&limit=10"
+curl -s "http://localhost:9622/graph/label/list" \
+  | python3 -c 'import sys,json; t="SEARCH_TERM".lower(); print([x for x in json.load(sys.stdin) if t in x.lower()])'
 ```
 
-Returns a JSON array of entity names (fuzzy match).
+Returns a JSON array of matching entity names.
 
 ## Step 2 — Subgraph around an entity
 
@@ -52,9 +56,6 @@ Returns:
 # All entity labels
 curl -s "http://localhost:9622/graph/label/list"
 
-# Hubs (most connected)
-curl -s "http://localhost:9622/graph/label/popular?limit=20"
-
 # Existence check
 curl -s "http://localhost:9622/graph/entity/exists?name=ENTITY_NAME"
 ```
@@ -63,7 +64,7 @@ curl -s "http://localhost:9622/graph/entity/exists?name=ENTITY_NAME"
 
 User: "What does my KB know about MinerU?"
 
-1. `curl -s "http://localhost:9622/graph/label/search?q=MinerU&limit=10"` → `["MinerU", "MinerU Parser"]`
+1. `curl -s "http://localhost:9622/graph/label/list" | python3 -c 'import sys,json; t="mineru"; print([x for x in json.load(sys.stdin) if t in x.lower()])'` → `["MinerU", "MinerU Parser"]`
 2. `curl -s "http://localhost:9622/graphs?label=MinerU&max_depth=2&max_nodes=20"`
 3. Present:
    > **MinerU** is connected to:
