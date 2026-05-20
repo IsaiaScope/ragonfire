@@ -26,8 +26,17 @@ new_bytes=$(rf_size_bytes "$NEW_SIZE")
 [ "$new_bytes" -gt "$current_bytes" ] || rf_die "new size $NEW_SIZE is not larger than current image size $current_bytes bytes"
 rf_confirm_destructive "grow-pgdata" "stop stack and resize $PGDATA_IMG to $NEW_SIZE"
 
+# resize2fs/truncate mutate the filesystem in place; an interrupted resize can
+# corrupt it. Take a snapshot first while the DB is still up and reachable.
+if docker ps --format '{{.Names}}' | grep -q '^ragonfire-postgres$'; then
+  rf_info "taking pre-grow snapshot"
+  "$SCRIPT_DIR/db-snapshot.sh"
+else
+  rf_warn "postgres not running; skipping pre-grow snapshot (no live DB to dump)"
+fi
+
 rf_info "stopping stack"
-"$REPO_DIR/rag-anything/scripts/lightrag-stop.sh"
+"$SCRIPT_DIR/lightrag-stop.sh"
 
 rf_info "extending file to $NEW_SIZE"
 rf_run truncate -s "$NEW_SIZE" "$PGDATA_IMG"
@@ -37,6 +46,6 @@ MSYS_NO_PATHCONV=1 rf_run docker run --rm -v "$PGDATA_IMG:/img" alpine:3.20 sh -
   "apk add --no-cache --quiet e2fsprogs >/dev/null && e2fsck -f -y /img && resize2fs /img"
 
 rf_info "restarting"
-"$REPO_DIR/rag-anything/scripts/lightrag-start.sh"
+"$SCRIPT_DIR/lightrag-start.sh"
 
 rf_info "OK"

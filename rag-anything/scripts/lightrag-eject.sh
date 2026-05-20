@@ -24,7 +24,7 @@ fi
 
 rf_confirm_destructive "eject-drive" "stop stack, sync, and eject $DRIVE_ROOT"
 rf_info "stopping stack"
-"$REPO_DIR/rag-anything/scripts/lightrag-stop.sh"
+"$SCRIPT_DIR/lightrag-stop.sh"
 
 rf_info "sync"
 sync
