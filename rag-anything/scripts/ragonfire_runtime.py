@@ -17,7 +17,6 @@ class IngestRuntime:
     working_dir: str
     output_dir: Path
     ollama_host: str
-    llm_model: str
     extraction_model: str
     vision_model: str
     embed_model: str
@@ -112,7 +111,6 @@ def build_runtime(project_dir: Path, scripts_dir: Path) -> IngestRuntime:
         working_dir=require_env("WORKING_DIR"),
         output_dir=output_dir,
         ollama_host=os.environ.get("LLM_BINDING_HOST", "http://localhost:11434"),
-        llm_model=llm_model,
         # Split models: text extraction needs a model that follows LightRAG's
         # tuple format and survives long entity-type prompts. qwen2.5vl (vision)
         # mangles the `<|>` delimiter and asserts in M-RoPE on long prompts, so
