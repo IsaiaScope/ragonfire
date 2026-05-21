@@ -29,6 +29,7 @@ jobs:
       - name: Install Ollama
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
+          sudo systemctl stop ollama 2>/dev/null || true
           OLLAMA_HOST=0.0.0.0:11434 nohup ollama serve > /tmp/ollama.log 2>&1 &
           for _ in $(seq 1 60); do
             curl -sf http://localhost:11434/api/tags >/dev/null && exit 0
