@@ -26,25 +26,27 @@ if [ "$CLEAN_RUNTIME" -eq 1 ]; then
   cp "$REPO_DIR"/rag-anything/.env.example "$RUNTIME_DIR/.env"
   chmod +x "$RUNTIME_DIR"/scripts/*.sh "$RUNTIME_DIR"/scripts/*.py
 
-  python3 "$RUNTIME_DIR/scripts/render_env.py" "$RUNTIME_DIR/.env" \
-    --repo-root "$REPO_DIR" \
-    --data-dir "$DATA_DIR" \
-    --pgdata-img-cap 500M
-
+  ci_env_overrides=()
   # GitHub runners are CPU-only and slow for 7B extraction. Keep the smoke on
   # the real ingest/query/storage path, but use a smaller text model and skip the
   # optional gleaning pass so the check is deterministic in CI.
   if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
-    {
-      echo "LLM_MODEL=qwen2.5:3b"
-      echo "EXTRACTION_MODEL=qwen2.5:3b"
-      echo "VISION_MODEL=qwen2.5:3b"
-      echo "ENABLE_IMAGE_PROCESSING=false"
-      echo "ENTITY_EXTRACT_MAX_GLEANING=0"
-      echo "CHUNK_SIZE=4000"
-      echo "TIMEOUT=1800"
-    } >> "$RUNTIME_DIR/.env"
+    ci_env_overrides=(
+      --set LLM_MODEL=qwen2.5:3b
+      --set EXTRACTION_MODEL=qwen2.5:3b
+      --set VISION_MODEL=qwen2.5:3b
+      --set ENABLE_IMAGE_PROCESSING=false
+      --set ENTITY_EXTRACT_MAX_GLEANING=0
+      --set CHUNK_SIZE=4000
+      --set TIMEOUT=1800
+    )
   fi
+
+  python3 "$RUNTIME_DIR/scripts/render_env.py" "$RUNTIME_DIR/.env" \
+    --repo-root "$REPO_DIR" \
+    --data-dir "$DATA_DIR" \
+    --pgdata-img-cap 500M \
+    "${ci_env_overrides[@]}"
 
   if [ ! -d "$RUNTIME_DIR/.venv" ]; then
     uv venv --python 3.12 "$RUNTIME_DIR/.venv"
@@ -77,9 +79,24 @@ echo "[smoke] ingest sample.pdf"
   "$REPO_DIR/tests/fixtures/sample.pdf"
 
 echo "[smoke] querying"
-ANSWER=$(curl -sf -X POST "http://localhost:$PORT/query" \
+QUERY_BODY=$(mktemp)
+if ! HTTP_CODE=$(curl -sS -o "$QUERY_BODY" -w "%{http_code}" -X POST "http://localhost:$PORT/query" \
   -H "Content-Type: application/json" \
-  -d '{"query": "What is the Marble Crocodile method?", "mode": "hybrid", "enable_rerank": false}')
+  -d '{"query": "What is the Marble Crocodile method?", "mode": "hybrid", "enable_rerank": false}'); then
+  echo "[smoke] FAIL: query request failed"
+  LIGHTRAG_ENV_FILE="$RUNTIME_DIR/.env" docker compose -f "$REPO_DIR/infra/docker-compose.yml" \
+    --env-file "$RUNTIME_DIR/.env" logs --tail 120 lightrag-server
+  exit 1
+fi
+ANSWER=$(cat "$QUERY_BODY")
+[ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ] || {
+  echo "[smoke] FAIL: query returned HTTP $HTTP_CODE"
+  cat "$QUERY_BODY"
+  echo
+  LIGHTRAG_ENV_FILE="$RUNTIME_DIR/.env" docker compose -f "$REPO_DIR/infra/docker-compose.yml" \
+    --env-file "$RUNTIME_DIR/.env" logs --tail 120 lightrag-server
+  exit 1
+}
 echo "$ANSWER" | grep -iq "marble crocodile" \
   || { echo "[smoke] FAIL: known phrase missing from answer"; exit 1; }
 

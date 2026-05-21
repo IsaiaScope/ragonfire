@@ -124,6 +124,16 @@ class RenderEnvTests(unittest.TestCase):
         self.assertEqual(updates["PGDATA_IMG"], "/tmp/data/pgdata.ext4.img")
         self.assertEqual(updates["PGDATA_IMG_CAP"], "500M")
 
+    def test_parse_key_value_accepts_values_with_equals(self) -> None:
+        key, value = self.module.parse_key_value("TOKEN_SECRET=a=b")
+
+        self.assertEqual(key, "TOKEN_SECRET")
+        self.assertEqual(value, "a=b")
+
+    def test_parse_key_value_rejects_missing_key(self) -> None:
+        with self.assertRaisesRegex(ValueError, "non-empty key"):
+            self.module.parse_key_value("=value")
+
 
 class NativeWarningFilterTests(unittest.TestCase):
     def setUp(self) -> None:

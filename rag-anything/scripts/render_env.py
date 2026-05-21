@@ -57,6 +57,15 @@ def render_env_file(env_path: Path, updates: dict[str, str]) -> None:
     env_path.write_text(apply_updates(env_path.read_text(), updates))
 
 
+def parse_key_value(raw: str) -> tuple[str, str]:
+    if "=" not in raw:
+        raise ValueError(f"expected KEY=VALUE, got {raw!r}")
+    key, value = raw.split("=", 1)
+    if not key:
+        raise ValueError(f"expected non-empty key in {raw!r}")
+    return key, value
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Stamp RagOnFire runtime paths into a .env file")
     parser.add_argument("env_file", type=Path)
@@ -64,6 +73,7 @@ def main() -> int:
     parser.add_argument("--data-dir", type=Path)
     parser.add_argument("--ollama-models", type=Path)
     parser.add_argument("--pgdata-img-cap")
+    parser.add_argument("--set", dest="overrides", action="append", default=[], metavar="KEY=VALUE")
     args = parser.parse_args()
 
     updates = runtime_path_updates(
@@ -72,6 +82,12 @@ def main() -> int:
         ollama_models=args.ollama_models.expanduser().resolve() if args.ollama_models else None,
         pgdata_img_cap=args.pgdata_img_cap,
     )
+    for raw in args.overrides:
+        try:
+            key, value = parse_key_value(raw)
+        except ValueError as exc:
+            parser.error(str(exc))
+        updates[key] = value
     render_env_file(args.env_file, updates)
     return 0
 
