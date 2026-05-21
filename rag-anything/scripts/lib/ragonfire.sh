@@ -238,6 +238,56 @@ rf_ollama_serve_bg() {
   esac
 }
 
+rf_docker_daemon_up() {
+  docker info >/dev/null 2>&1
+}
+
+rf_docker_launch_desktop() {
+  case "${RF_OS:-}" in
+    darwin)
+      rf_run open -a Docker
+      ;;
+    windows)
+      rf_run powershell -NoProfile -Command \
+        "Start-Process -FilePath \$Env:ProgramFiles'\Docker\Docker\Docker Desktop.exe'"
+      ;;
+    linux|wsl)
+      # No Desktop GUI; try the systemd service if present.
+      if command -v systemctl >/dev/null 2>&1; then
+        rf_run sudo systemctl start docker || return 1
+      else
+        return 1
+      fi
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+# Ensure the docker daemon is reachable, auto-launching it if not. Avoids the
+# "Cannot connect to the Docker daemon" failure when Docker Desktop is closed.
+rf_ensure_docker_running() {
+  rf_require_cmd docker
+  if rf_docker_daemon_up; then
+    return 0
+  fi
+  rf_info "docker daemon not reachable; attempting to start it"
+  if ! rf_docker_launch_desktop; then
+    rf_die "could not auto-start docker for OS '${RF_OS:-unknown}'. Start Docker manually, then retry."
+  fi
+  local attempts="${1:-60}" sleep_seconds="${2:-2}" i
+  rf_info "waiting for docker daemon (up to $((attempts * sleep_seconds))s)"
+  for i in $(seq 1 "$attempts"); do
+    if rf_docker_daemon_up; then
+      rf_info "docker daemon ready after attempt $i/$attempts"
+      return 0
+    fi
+    sleep "$sleep_seconds"
+  done
+  rf_die "docker daemon did not become ready. Check Docker Desktop, then retry."
+}
+
 rf_ollama_stop_model() {
   local model="$1"
   command -v ollama >/dev/null 2>&1 && ollama stop "$model" 2>/dev/null || true

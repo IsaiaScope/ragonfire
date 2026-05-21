@@ -27,6 +27,8 @@ rf_wait_http "ollama" "http://localhost:11434/api/tags" 15 1
 # They break docker build context and pollute mounted volumes.
 rf_strip_appledouble "$REPO_DIR/infra" "$(dirname "$PGDATA_IMG")"
 
+rf_ensure_docker_running
+
 rf_info "docker compose up"
 rf_compose up -d
 
