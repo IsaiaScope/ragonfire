@@ -2,7 +2,6 @@
 """LightRAG extraction prompt tuning and output repair."""
 from __future__ import annotations
 
-import os
 import re
 
 
@@ -60,9 +59,9 @@ def repair_extraction_result(result: object) -> object:
     return MISSING_CLOSE_PAREN_RE.sub(r'")\1', result)
 
 
-def install_extraction_tuning() -> None:
+def install_extraction_tuning(enabled: bool = True) -> None:
     """Inject content-free rules and a neutral list example into LightRAG prompts."""
-    if os.environ.get("EXTRACTION_TUNING", "1") != "1":
+    if not enabled:
         return
     from lightrag import prompt as lrprompt
 

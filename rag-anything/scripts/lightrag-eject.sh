@@ -5,9 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/ragonfire.sh"
-rf_init eject
-rf_load_env
-rf_require_runtime_env
+rf_bootstrap eject
 rf_require_cmd sync
 
 if [ -n "${RAGONFIRE_DRIVE_ROOT:-}" ]; then

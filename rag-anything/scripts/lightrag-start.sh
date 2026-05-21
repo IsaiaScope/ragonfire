@@ -8,9 +8,7 @@ export COPYFILE_DISABLE=1
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/ragonfire.sh"
-rf_init start
-rf_load_env
-rf_require_runtime_env
+rf_bootstrap start
 rf_require_cmds curl docker grep ollama sed
 rf_ensure_data_dirs
 
@@ -21,7 +19,7 @@ if ! rf_ollama_running; then
   rf_ollama_serve_bg
   sleep 2
 fi
-rf_wait_http "ollama" "http://localhost:11434/api/tags" 15 1
+rf_wait_http "ollama" "$RF_OLLAMA_URL/api/tags" 15 1
 
 # Strip macOS AppleDouble shadow files (._*) that ExFAT cannot suppress.
 # They break docker build context and pollute mounted volumes.

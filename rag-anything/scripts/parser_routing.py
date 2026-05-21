@@ -5,6 +5,25 @@ from __future__ import annotations
 from pathlib import Path
 
 
+# Parser vocabulary. These three names are the only parsers RagOnFire selects by
+# routing; any other value is a configured pass-through handed straight to
+# RAG-Anything. Defined here, the single home of Parser Routing, so the dispatch
+# seam in rag_adapter imports them instead of re-spelling the literals.
+PYMUPDF = "pymupdf"  # fast text-layer path, our own (not a RAG-Anything parser)
+HYBRID = "hybrid"    # MinerU vision + pymupdf text recovery, our own
+MINERU = "mineru"    # full MinerU OCR pipeline (an upstream RAG-Anything parser)
+
+# pymupdf and hybrid are PDF paths implemented in this repo, not upstream parsers.
+# "Is this one of our custom PDF paths?" is asked in two places (dispatch and
+# config); is_custom_pdf_path owns that rule so the two cannot disagree.
+CUSTOM_PDF_PARSERS = (PYMUPDF, HYBRID)
+
+
+def is_custom_pdf_path(parser: str, is_pdf: bool) -> bool:
+    """True if RagOnFire owns this document's parse path (vs. delegating upstream)."""
+    return is_pdf and parser in CUSTOM_PDF_PARSERS
+
+
 # A digital PDF whose largest page-image coverage meets this fraction is treated
 # as figure-bearing (route to hybrid for MinerU vision). Below it, images are
 # decorative (headshot/logo) and the pymupdf fast path loses nothing.
@@ -50,7 +69,7 @@ def route_parser(
     if configured_parser != "auto" or not is_pdf:
         return configured_parser
     if not has_text_layer(file_path):
-        return "mineru"
+        return MINERU
     if max_image_coverage(file_path) >= figure_coverage_threshold:
-        return "hybrid"
-    return "pymupdf"
+        return HYBRID
+    return PYMUPDF

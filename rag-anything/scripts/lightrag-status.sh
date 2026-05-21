@@ -6,9 +6,7 @@ set -euo pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/ragonfire.sh"
-rf_init status
-rf_load_env
-rf_require_runtime_env
+rf_bootstrap status
 
 rf_info "repo: $REPO_DIR"
 rf_info "runtime: $RUNTIME_DIR"
@@ -16,7 +14,7 @@ rf_info "data: $RAGONFIRE_DATA_DIR"
 
 echo "=== Ollama ==="
 rf_ollama_running && echo "daemon: running" || echo "daemon: STOPPED"
-command -v curl >/dev/null 2>&1 && curl -sf http://localhost:11434/api/tags >/dev/null && echo "api: 200" || echo "api: DOWN"
+command -v curl >/dev/null 2>&1 && curl -sf "$RF_OLLAMA_URL/api/tags" >/dev/null && echo "api: 200" || echo "api: DOWN"
 
 echo
 echo "=== Docker ==="
@@ -29,8 +27,7 @@ fi
 echo
 echo "=== Postgres ==="
 if command -v docker >/dev/null 2>&1; then
-  docker exec ragonfire-postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DATABASE" 2>&1 \
-    || echo "postgres: DOWN"
+  rf_pg_isready 2>&1 || echo "postgres: DOWN"
 else
   echo "postgres: UNKNOWN (docker unavailable)"
 fi

@@ -83,6 +83,25 @@ class RuntimeHelperTests(unittest.TestCase):
             runtime = self.module.build_runtime(Path(tmp), scripts)
             self.assertEqual(runtime.mineru_device, "cuda")
 
+    def test_build_runtime_centralizes_timeout_and_tuning_config(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            scripts = Path(tmp) / "scripts"
+            scripts.mkdir()
+            os.environ["WORKING_DIR"] = str(Path(tmp) / "working")
+            os.environ["MINERU_DEVICE"] = "cpu"
+            os.environ["TIMEOUT"] = "120"
+            os.environ.pop("VISION_TIMEOUT", None)
+            os.environ["EXTRACTION_TEMPERATURE"] = "0.0"
+            os.environ["EXTRACTION_TUNING"] = "0"
+
+            runtime = self.module.build_runtime(Path(tmp), scripts)
+
+            self.assertEqual(runtime.text_timeout, 120)
+            # vision falls back to TIMEOUT when VISION_TIMEOUT is unset
+            self.assertEqual(runtime.vision_timeout, 120)
+            self.assertEqual(runtime.extraction_temperature, 0.0)
+            self.assertFalse(runtime.extraction_tuning)
+
     def test_build_runtime_uses_cpu_when_device_probe_fails(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             scripts = Path(tmp) / "scripts"

@@ -5,9 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/ragonfire.sh"
-rf_init restore
-rf_load_env
-rf_require_runtime_env
+rf_bootstrap restore
 rf_require_cmds docker find gzip gunzip
 
 FORCE=0
@@ -47,8 +45,7 @@ rf_compose stop lightrag-server >/dev/null 2>&1 || true
 # first so the dump is authoritative. Only under --force (drops all data).
 if [ "$FORCE" -eq 1 ]; then
   rf_info "resetting target DB before replay (--force)"
-  docker exec -i ragonfire-postgres \
-    psql -U "$POSTGRES_USER" -d "$POSTGRES_DATABASE" -v ON_ERROR_STOP=1 <<'SQL'
+  rf_pg_psql_stdin <<'SQL'
 DROP SCHEMA IF EXISTS chunk_entity_relation CASCADE;
 DROP EXTENSION IF EXISTS age CASCADE;
 DROP SCHEMA IF EXISTS ag_catalog CASCADE;
@@ -58,8 +55,7 @@ SQL
 fi
 
 rf_info "restoring $TARGET into $POSTGRES_DATABASE"
-gunzip -c "$TARGET" | docker exec -i ragonfire-postgres \
-  psql -U "$POSTGRES_USER" -d "$POSTGRES_DATABASE" -v ON_ERROR_STOP=1
+gunzip -c "$TARGET" | rf_pg_psql_stdin
 
 META_VERSION=$(rf_pg_query "SELECT value FROM lightrag_meta WHERE key='lightrag_version'" 2>/dev/null || true)
 if [ -n "$META_VERSION" ]; then

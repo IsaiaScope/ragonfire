@@ -40,7 +40,6 @@ rf_info "allocating $PGDATA_IMG_CAP at $PGDATA_IMG"
 rf_run truncate -s "$PGDATA_IMG_CAP" "$PGDATA_IMG"
 
 rf_info "formatting ext4 inside the image (via helper container)"
-MSYS_NO_PATHCONV=1 rf_run docker run --rm -v "$PGDATA_IMG:/img" alpine:3.20 sh -c \
-  "apk add --no-cache --quiet e2fsprogs >/dev/null && mkfs.ext4 -F -L ragonfire-pgdata /img"
+rf_ext4_helper "mkfs.ext4 -F -L ragonfire-pgdata /img"
 
 rf_info "done. Next: /lightrag-start"

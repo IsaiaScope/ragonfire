@@ -37,6 +37,10 @@ class IngestRuntime:
     enable_image: bool
     enable_table: bool
     enable_equation: bool
+    text_timeout: int
+    vision_timeout: int
+    extraction_temperature: float
+    extraction_tuning: bool
 
 
 def load_runtime_env(project_dir: Path) -> None:
@@ -139,6 +143,15 @@ def build_runtime(project_dir: Path, scripts_dir: Path) -> IngestRuntime:
         enable_image=env_bool("ENABLE_IMAGE_PROCESSING", "true"),
         enable_table=env_bool("ENABLE_TABLE_PROCESSING", "true"),
         enable_equation=env_bool("ENABLE_EQUATION_PROCESSING", "true"),
+        # Timeouts: TIMEOUT drives text extraction; vision falls back to TIMEOUT
+        # then 600s (vision calls are slower). Both centralized here so callers
+        # never read os.environ for timeout config.
+        text_timeout=env_int("TIMEOUT", "300"),
+        vision_timeout=env_int("VISION_TIMEOUT", os.environ.get("TIMEOUT", "600")),
+        # LightRAG's wrapper does not set temperature, so Ollama falls back to 0.8
+        # and extraction is non-deterministic. Force deterministic for recall.
+        extraction_temperature=env_float("EXTRACTION_TEMPERATURE", "0.0"),
+        extraction_tuning=env_bool("EXTRACTION_TUNING", "1"),
     )
 
 

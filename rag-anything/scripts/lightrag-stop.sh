@@ -6,9 +6,7 @@ set -euo pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/ragonfire.sh"
-rf_init stop
-rf_load_env
-rf_require_runtime_env
+rf_bootstrap stop
 rf_require_cmd docker
 
 rf_info "graceful compose down (PG checkpoint + loop unmount)"

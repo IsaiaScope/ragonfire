@@ -28,9 +28,10 @@ rf_confirm_destructive "grow-pgdata" "stop stack and resize $PGDATA_IMG to $NEW_
 
 # resize2fs/truncate mutate the filesystem in place; an interrupted resize can
 # corrupt it. Take a snapshot first while the DB is still up and reachable.
-if docker ps --format '{{.Names}}' | grep -q '^ragonfire-postgres$'; then
+if rf_pg_running; then
   rf_info "taking pre-grow snapshot"
   "$SCRIPT_DIR/db-snapshot.sh"
+  rf_verify_snapshot "$(rf_latest_snapshot)"
 else
   rf_warn "postgres not running; skipping pre-grow snapshot (no live DB to dump)"
 fi
@@ -42,8 +43,7 @@ rf_info "extending file to $NEW_SIZE"
 rf_run truncate -s "$NEW_SIZE" "$PGDATA_IMG"
 
 rf_info "fsck + resize2fs (inside helper container)"
-MSYS_NO_PATHCONV=1 rf_run docker run --rm -v "$PGDATA_IMG:/img" alpine:3.20 sh -c \
-  "apk add --no-cache --quiet e2fsprogs >/dev/null && e2fsck -f -y /img && resize2fs /img"
+rf_ext4_helper "e2fsck -f -y /img && resize2fs /img"
 
 rf_info "restarting"
 "$SCRIPT_DIR/lightrag-start.sh"

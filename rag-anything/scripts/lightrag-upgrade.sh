@@ -8,14 +8,8 @@ set -euo pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/ragonfire.sh"
-rf_init upgrade
-rf_load_env
-rf_require_runtime_env
+rf_bootstrap upgrade
 rf_require_cmds find gzip grep sed
-
-latest_snapshot() {
-  find "$BACKUPS_DIR" -maxdepth 1 -name 'pgdump-*.sql.gz' -type f -print 2>/dev/null | sort -r | head -1 || true
-}
 
 NEW_VERSION=$(grep -E '^lightrag-hku\[api\]==' "$REPO_DIR/rag-anything/requirements.txt" | sed 's/.*==//')
 [ -n "$NEW_VERSION" ] || { echo "[upgrade] cannot read pinned version from requirements.txt" >&2; exit 1; }
@@ -34,11 +28,8 @@ rf_info "target lightrag-hku == $NEW_VERSION"
 
 rf_info "taking pre-upgrade snapshot"
 "$SCRIPT_DIR/db-snapshot.sh"
-SNAPSHOT=$(latest_snapshot)
-[ -n "$SNAPSHOT" ] || rf_die "snapshot was not created; refusing to wipe $PGDATA_IMG"
-[ -s "$SNAPSHOT" ] || rf_die "snapshot is empty: $SNAPSHOT"
-rf_run gzip -t "$SNAPSHOT"
-rf_info "verified snapshot: $SNAPSHOT"
+SNAPSHOT=$(rf_latest_snapshot)
+rf_verify_snapshot "$SNAPSHOT"
 
 rf_info "stopping stack"
 "$SCRIPT_DIR/lightrag-stop.sh"

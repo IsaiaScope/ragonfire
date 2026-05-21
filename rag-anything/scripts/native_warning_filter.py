@@ -2,9 +2,9 @@
 """Process-level stderr filtering for noisy native dependencies."""
 from __future__ import annotations
 
+import atexit
 import os
 import threading
-import atexit
 
 
 _INSTALLED = False
@@ -26,8 +26,8 @@ def install_native_warning_filter() -> None:
         return
     _INSTALLED = True
 
-    os.environ.setdefault("ORT_LOG_SEVERITY_LEVEL", "3")
-
+    # ORT_LOG_SEVERITY_LEVEL is owned by ragonfire_runtime.quiet_dependency_warnings(),
+    # which runs before any onnxruntime import (parser imports are lazy).
     read_fd, write_fd = os.pipe()
     original_stderr_fd = os.dup(2)
     os.dup2(write_fd, 2)

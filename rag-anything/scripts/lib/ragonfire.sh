@@ -8,11 +8,20 @@ fi
 _RAGONFIRE_SH_INCLUDED=1
 
 RF_SCRIPT_NAME="${RF_SCRIPT_NAME:-ragonfire}"
+RF_PG_CONTAINER="${RF_PG_CONTAINER:-ragonfire-postgres}"
 
 rf_init() {
   RF_SCRIPT_NAME="${1:-ragonfire}"
   RUNTIME_DIR="${RAGONFIRE_RUNTIME:-$HOME/rag-anything}"
   ENV_FILE="${RAGONFIRE_ENV_FILE:-$RUNTIME_DIR/.env}"
+}
+
+# Standard entrypoint preamble: name + .env load + runtime-env validation, the
+# trio repeated by every lifecycle script. Scripts add their own rf_require_cmds.
+rf_bootstrap() {
+  rf_init "$1"
+  rf_load_env
+  rf_require_runtime_env
 }
 
 rf_info() {
@@ -104,6 +113,10 @@ rf_load_env_file() {
   RAGONFIRE_REPO_DIR="$REPO_DIR"
   RAGONFIRE_DATA_DIR="${RAGONFIRE_DATA_DIR:-$REPO_DIR/data}"
 
+  # Data Root layout fallbacks. render_env.py:runtime_path_updates() is the
+  # authority and stamps these into .env at init; these defaults only fire for an
+  # .env that predates a var. Keep the subdir names in sync with render_env.py --
+  # DataRootLayoutConsistencyTests fails CI if they drift.
   INPUT_DIR="${INPUT_DIR:-$RAGONFIRE_DATA_DIR/input}"
   OUTPUT_DIR="${OUTPUT_DIR:-$RAGONFIRE_DATA_DIR/output}"
   WORKING_DIR="${WORKING_DIR:-$RAGONFIRE_DATA_DIR/working}"
@@ -117,10 +130,14 @@ rf_load_env_file() {
   HOST_LOGS_DIR="${HOST_LOGS_DIR:-$RAGONFIRE_DATA_DIR/logs}"
   LOG_DIR="${LOG_DIR:-/var/log/lightrag}"
   RF_OS="${RF_OS:-$("$REPO_DIR/infra/os/detect.sh")}"
+  # Host-local Ollama API base for lifecycle probes. The .env's LLM_BINDING_HOST
+  # points at host.docker.internal (the container's view); bash runs on the host,
+  # so probes use localhost. One default here, consumed by start/status.
+  RF_OLLAMA_URL="${RF_OLLAMA_URL:-http://localhost:11434}"
 
   export REPO_DIR RUNTIME_DIR ENV_FILE RAGONFIRE_REPO_DIR RAGONFIRE_DATA_DIR
   export INPUT_DIR OUTPUT_DIR WORKING_DIR BACKUPS_DIR OLLAMA_MODELS HF_HOME
-  export MINERU_MODELS_DIR PGDATA_IMG HOST_LOGS_DIR LOG_DIR RF_OS
+  export MINERU_MODELS_DIR PGDATA_IMG HOST_LOGS_DIR LOG_DIR RF_OS RF_OLLAMA_URL
 }
 
 rf_require_runtime_env() {
@@ -145,15 +162,70 @@ rf_compose() {
   LIGHTRAG_ENV_FILE="$ENV_FILE" docker compose -f "$REPO_DIR/infra/docker-compose.yml" --env-file "$ENV_FILE" "$@"
 }
 
-rf_pg_exec() {
+# Single seam for reaching the Postgres container: owns the container name, the
+# docker-exec transport, and standard auth (-U/-d). Pass -i as the first arg for
+# stdin-driven commands. Every rf_pg_* client below adds only its own flags, so a
+# change to the container or credentials lives here alone.
+# usage: rf_pg_run [-i] <tool> [tool-args...]
+rf_pg_run() {
   rf_require_cmd docker
+  if [ "${1:-}" = "-i" ]; then
+    shift
+    docker exec -i "$RF_PG_CONTAINER" "$1" -U "$POSTGRES_USER" -d "$POSTGRES_DATABASE" "${@:2}"
+  else
+    docker exec "$RF_PG_CONTAINER" "$1" -U "$POSTGRES_USER" -d "$POSTGRES_DATABASE" "${@:2}"
+  fi
+}
+
+rf_pg_exec() {
   rf_info "postgres: $*"
-  docker exec ragonfire-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DATABASE" "$@"
+  rf_pg_run psql "$@"
 }
 
 rf_pg_query() {
+  rf_pg_run psql -tAc "$1"
+}
+
+rf_pg_dump() {
+  rf_pg_run pg_dump --format=plain
+}
+
+# Replay SQL piped on stdin with ON_ERROR_STOP (used for restore reset + replay).
+rf_pg_psql_stdin() {
+  rf_pg_run -i psql -v ON_ERROR_STOP=1
+}
+
+rf_pg_isready() {
+  rf_pg_run pg_isready
+}
+
+rf_pg_running() {
   rf_require_cmd docker
-  docker exec ragonfire-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DATABASE" -tAc "$1"
+  docker ps --format '{{.Names}}' | grep -q "^${RF_PG_CONTAINER}$"
+}
+
+# Run an e2fsprogs command against the loopback image in a throwaway container.
+# Centralizes the alpine + e2fsprogs install shared by db-init and db-grow.
+# usage: rf_ext4_helper "<shell command operating on /img>"
+rf_ext4_helper() {
+  rf_require_cmd docker
+  MSYS_NO_PATHCONV=1 rf_run docker run --rm -v "$PGDATA_IMG:/img" alpine:3.20 sh -c \
+    "apk add --no-cache --quiet e2fsprogs >/dev/null && $1"
+}
+
+rf_latest_snapshot() {
+  find "$BACKUPS_DIR" -maxdepth 1 -name 'pgdump-*.sql.gz' -type f -print 2>/dev/null | sort -r | head -1 || true
+}
+
+# Assert a snapshot path is a non-empty, valid gzip before trusting it as the
+# rollback point ahead of a destructive operation (logs to stdout/stderr; the
+# path must be captured separately via rf_latest_snapshot to stay capture-safe).
+rf_verify_snapshot() {
+  local snapshot="$1"
+  [ -n "$snapshot" ] || rf_die "snapshot was not created; refusing to continue"
+  [ -s "$snapshot" ] || rf_die "snapshot is empty: $snapshot"
+  rf_run gzip -t "$snapshot"
+  rf_info "verified snapshot: $snapshot"
 }
 
 rf_wait_http() {

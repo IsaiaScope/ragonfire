@@ -13,6 +13,9 @@ def runtime_path_updates(
     ollama_models: Path | None = None,
     pgdata_img_cap: str | None = None,
 ) -> dict[str, str]:
+    # Authoritative Data Root layout. lib/ragonfire.sh re-derives the same subdirs
+    # as runtime fallbacks (it cannot import this across the Python<->bash seam);
+    # DataRootLayoutConsistencyTests locks the two against drift.
     data = data_dir or repo_root / "data"
     updates = {
         "RAGONFIRE_REPO_DIR": str(repo_root),
