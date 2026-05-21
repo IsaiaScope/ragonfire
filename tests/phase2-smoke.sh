@@ -31,6 +31,21 @@ if [ "$CLEAN_RUNTIME" -eq 1 ]; then
     --data-dir "$DATA_DIR" \
     --pgdata-img-cap 500M
 
+  # GitHub runners are CPU-only and slow for 7B extraction. Keep the smoke on
+  # the real ingest/query/storage path, but use a smaller text model and skip the
+  # optional gleaning pass so the check is deterministic in CI.
+  if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+    {
+      echo "LLM_MODEL=qwen2.5:3b"
+      echo "EXTRACTION_MODEL=qwen2.5:3b"
+      echo "VISION_MODEL=qwen2.5:3b"
+      echo "ENABLE_IMAGE_PROCESSING=false"
+      echo "ENTITY_EXTRACT_MAX_GLEANING=0"
+      echo "CHUNK_SIZE=4000"
+      echo "TIMEOUT=1800"
+    } >> "$RUNTIME_DIR/.env"
+  fi
+
   if [ ! -d "$RUNTIME_DIR/.venv" ]; then
     uv venv --python 3.12 "$RUNTIME_DIR/.venv"
   fi

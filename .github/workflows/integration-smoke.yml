@@ -39,8 +39,7 @@ jobs:
 
       - name: Pull local models
         run: |
-          ollama pull qwen2.5:7b
-          ollama pull qwen2.5vl:7b
+          ollama pull qwen2.5:3b
           ollama pull bge-m3
 
       - name: Run phase2 smoke
