@@ -2,8 +2,8 @@
 # OS-agnostic installer: Docker check + Ollama + uv + venv + skills + compose build + db-init.
 #
 # Usage:
-#   ./bootstrap.sh                                   # skills -> claude-code
-#   ./bootstrap.sh --agent codex
+#   ./bootstrap.sh                                   # no skill copy: Claude Code reads .claude/skills/
+#   ./bootstrap.sh --agent codex                     # also copy skills -> ~/.codex/skills
 #   ./bootstrap.sh --agent all
 #   ./bootstrap.sh --skip-skills
 # shellcheck disable=SC1091
@@ -103,11 +103,12 @@ if [ "$RF_OS" = "darwin" ]; then
 fi
 MSYS_NO_PATHCONV=1 LIGHTRAG_ENV_FILE="$RUNTIME_DIR/.env" docker compose -f "$REPO_ROOT/infra/docker-compose.yml" --env-file "$RUNTIME_DIR/.env" build
 
-if [ "$SKIP_SKILLS" -eq 1 ]; then
-  log "skipping skills install"
+if [ "$SKIP_SKILLS" -eq 1 ] || [ ${#SKILL_ARGS[@]} -eq 0 ]; then
+  # ponytail: no --agent means Claude Code, which loads .claude/skills/ from the repo directly.
+  log "skills stay project-local in .claude/skills/ (pass --agent to copy them elsewhere)"
 else
-  log "installing skills ${SKILL_ARGS[*]:-(default: claude-code)}"
-  "$REPO_ROOT/scripts/install-skills.sh" "${SKILL_ARGS[@]+"${SKILL_ARGS[@]}"}"
+  log "installing skills ${SKILL_ARGS[*]}"
+  "$REPO_ROOT/scripts/install-skills.sh" "${SKILL_ARGS[@]}"
 fi
 
 cat <<EOF

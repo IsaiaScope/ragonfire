@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # RagOnFire — skills-only installer
 #
-# Copies every SKILL.md from rag-anything/skills/ into one or more AI agent
+# Copies every SKILL.md from .claude/skills/ into one or more AI agent
 # skill directories.
 #
 # Usage:
@@ -16,7 +16,7 @@
 set -euo pipefail
 
 REPO_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
-SRC="$REPO_DIR/rag-anything/skills"
+SRC="$REPO_DIR/.claude/skills"
 
 log() { printf "\033[1;36m[install-skills]\033[0m %s\n" "$*"; }
 err() { printf "\033[1;31m[error]\033[0m %s\n" "$*" >&2; exit 1; }
