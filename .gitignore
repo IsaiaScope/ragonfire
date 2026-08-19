@@ -6,21 +6,14 @@
 $RECYCLE.BIN/
 
 # --- Big binary data (do NOT push) ---
+# All runtime data lives under /data/: pgdata.ext4.img, ollama/, hf/, mineru/,
+# input/, output/, working/, backups/. Fully gitignored — re-created on bootstrap
+# (dirs) or downloaded on first use (models). Documentation for ollama/mineru
+# lives in docs/{ollama,mineru}.md.
+/data/
 
-# Ollama models (~7 GB)
-ollama/models/
-ollama/blobs/
-ollama/manifests/
-
-# MinerU models (~5 GB)
-mineru/models/
-mineru/cache/
-
-# RAG-Anything runtime
+# RAG-Anything runtime (host-local)
 rag-anything/.venv/
-rag-anything/storage/
-rag-anything/output/
-rag-anything/input/
 rag-anything/logs/
 rag-anything/.env
 
@@ -49,3 +42,4 @@ __pycache__/
 # --- Node (if ever added) ---
 node_modules/
 .pnpm-store/
+.iso/

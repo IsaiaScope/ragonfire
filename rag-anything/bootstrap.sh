@@ -1,143 +1,127 @@
 #!/usr/bin/env bash
-# RagOnFire bootstrap for macOS (Apple Silicon)
-#
-# One-shot installer:
-#   - Ollama (brew) + qwen2.5vl:7b + bge-m3
-#   - Python 3.12 venv at ~/rag-anything/.venv (POSIX FS required)
-#   - raganything[all] + lightrag-hku[api] + mineru + ollama python client
-#   - Skills copied to one or more AI agent skill dirs
-#   - Runtime data dirs at ~/rag-anything/{storage,output,input}
+# OS-agnostic installer: Docker check + Ollama + uv + venv + skills + compose build + db-init.
 #
 # Usage:
-#   ./bootstrap.sh                                   # skills → claude-code
-#   ./bootstrap.sh --agent codex                     # skills → codex
-#   ./bootstrap.sh --agent claude-code --agent codex # skills → both
-#   ./bootstrap.sh --agent all                       # skills → both
-#   ./bootstrap.sh --skip-skills                     # do not install skills
+#   ./bootstrap.sh                                   # no skill copy: Claude Code reads .claude/skills/
+#   ./bootstrap.sh --agent codex                     # also copy skills -> ~/.codex/skills
+#   ./bootstrap.sh --agent all
+#   ./bootstrap.sh --skip-skills
+# shellcheck disable=SC1091
 set -euo pipefail
+export COPYFILE_DISABLE=1
 
-REPO_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"          # ragonfire/rag-anything
-REPO_ROOT="$( cd "$REPO_DIR/.." && pwd )"                              # ragonfire/
+REPO_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+REPO_ROOT="$( cd "$REPO_DIR/.." && pwd )"
 RUNTIME_DIR="${RAGONFIRE_RUNTIME:-$HOME/rag-anything}"
-DATA_DIR="${RAGONFIRE_DATA:-$RUNTIME_DIR}"
 PYTHON_VERSION="3.12"
-LLM_MODEL="qwen2.5vl:7b"
+LLM_MODEL="qwen2.5vl:7b"       # vision/image extraction
+EXTRACTION_MODEL="qwen2.5:7b"  # text entity extraction (LightRAG tuple format)
 EMBED_MODEL="bge-m3"
+RF_OS=$("$REPO_ROOT/infra/os/detect.sh")
 
 log() { printf "\033[1;36m[bootstrap]\033[0m %s\n" "$*"; }
 err() { printf "\033[1;31m[error]\033[0m %s\n" "$*" >&2; exit 1; }
 
-# Parse args (forward --agent flags to install-skills.sh)
 SKILL_ARGS=()
 SKIP_SKILLS=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --agent)        SKILL_ARGS+=(--agent "$2"); shift 2 ;;
-    --agent=*)      SKILL_ARGS+=("--agent" "${1#*=}"); shift ;;
-    --skip-skills)  SKIP_SKILLS=1; shift ;;
+    --agent)       SKILL_ARGS+=(--agent "$2"); shift 2 ;;
+    --agent=*)     SKILL_ARGS+=("--agent" "${1#*=}"); shift ;;
+    --skip-skills) SKIP_SKILLS=1; shift ;;
     -h|--help)
       awk 'NR==1 { next } /^[^#]/ { exit } { sub(/^# ?/, ""); print }' "$0"
-      exit 0
-      ;;
-    *) err "unknown arg: $1 (try --help)" ;;
+      exit 0 ;;
+    *) err "unknown arg: $1" ;;
   esac
 done
 
-# 1. Prereq checks
-command -v brew >/dev/null || err "Homebrew required. Install: https://brew.sh"
-command -v uv >/dev/null   || err "uv required. Install: curl -LsSf https://astral.sh/uv/install.sh | sh"
+if [ "$RF_OS" = "windows" ]; then
+  case "$(uname -s)" in
+    MINGW*|MSYS*) ;;
+    *) err "Windows native bootstrap must run from Git Bash, not PowerShell/CMD/WSL." ;;
+  esac
+fi
 
+"$REPO_ROOT/infra/os/install-docker.sh"
+"$REPO_ROOT/infra/os/install-uv.sh"
+"$REPO_ROOT/infra/os/install-ollama.sh"
 
-# 2. Runtime dirs
-log "Preparing runtime dirs"
-mkdir -p "$RUNTIME_DIR"/{scripts,logs}
-mkdir -p "$DATA_DIR"/{storage,output,input}
+log "preparing runtime dirs"
+mkdir -p "$RUNTIME_DIR"/{scripts,logs} "$RUNTIME_DIR/scripts/lib"
 
-# 3. Copy scripts + .env + requirements from repo → runtime
-log "Syncing scripts + configs from repo to $RUNTIME_DIR"
-cp "$REPO_DIR/scripts/"*.py "$RUNTIME_DIR/scripts/"
-cp "$REPO_DIR/scripts/"*.sh "$RUNTIME_DIR/scripts/"
-cp "$REPO_DIR/requirements.txt" "$RUNTIME_DIR/"
+log "syncing scripts + config from repo to $RUNTIME_DIR"
+# Wipe stale scripts so renames/deletions in the repo don't leave orphans.
+find "$RUNTIME_DIR/scripts" -mindepth 1 -maxdepth 1 \( -name '*.py' -o -name '*.sh' \) -delete 2>/dev/null || true
+rm -rf "$RUNTIME_DIR/scripts/lib"
+mkdir -p "$RUNTIME_DIR/scripts/lib"
+cp "$REPO_DIR"/scripts/*.py "$RUNTIME_DIR/scripts/"
+cp "$REPO_DIR"/scripts/*.sh "$RUNTIME_DIR/scripts/"
+cp "$REPO_DIR"/scripts/lib/*.sh "$RUNTIME_DIR/scripts/lib/"
+cp "$REPO_DIR"/requirements.txt "$RUNTIME_DIR/"
+cp "$REPO_DIR"/requirements.lock "$RUNTIME_DIR/"
 [ -f "$RUNTIME_DIR/.env" ] || cp "$REPO_DIR/.env.example" "$RUNTIME_DIR/.env"
 cp "$REPO_DIR/.env.example" "$RUNTIME_DIR/.env.example"
-chmod +x "$RUNTIME_DIR/scripts/"*.sh "$RUNTIME_DIR/scripts/"*.py
+chmod +x "$RUNTIME_DIR"/scripts/*.sh "$RUNTIME_DIR"/scripts/*.py
 
-# 4. Ollama install + service
-if ! command -v ollama >/dev/null; then
-  log "Installing ollama via brew"
-  brew install ollama
-else
-  log "ollama present: $(ollama --version 2>&1 | head -1)"
-fi
+# Stamp concrete repo/data paths into runtime .env so copied scripts can run
+# from ~/rag-anything while all persistent state stays under repo-root data/.
+python3 "$RUNTIME_DIR/scripts/render_env.py" "$RUNTIME_DIR/.env" --repo-root "$REPO_ROOT"
 
-if ! pgrep -x ollama >/dev/null; then
-  log "Starting ollama service"
-  brew services start ollama
-  sleep 3
-fi
+# shellcheck disable=SC1090
+set -a; source "$RUNTIME_DIR/.env"; set +a
 
-# Wait for ollama API
-for _ in {1..15}; do
-  curl -sf http://localhost:11434/api/tags >/dev/null && break
-  sleep 1
-done
+log "ensuring drive paths exist"
+mkdir -p "$INPUT_DIR" "$OUTPUT_DIR" "$WORKING_DIR" "$BACKUPS_DIR" \
+         "$OLLAMA_MODELS" "$HF_HOME" \
+         "$(dirname "$PGDATA_IMG")"
 
-# 5. Pull models
-for m in "$LLM_MODEL" "$EMBED_MODEL"; do
-  if ollama list | awk 'NR>1 {print $1}' | grep -qx "$m"; then
-    log "model present: $m"
+export OLLAMA_MODELS
+log "pulling ollama models"
+for m in "$LLM_MODEL" "$EXTRACTION_MODEL" "$EMBED_MODEL"; do
+  if ollama list 2>/dev/null | awk 'NR>1 {print $1}' | grep -qx "$m"; then
+    log "  $m present"
   else
-    log "Pulling $m (large download)"
+    log "  pulling $m"
     ollama pull "$m"
   fi
 done
 
-# 6. Python venv via uv (Python 3.12, isolated from system Python)
 if [ ! -d "$RUNTIME_DIR/.venv" ]; then
-  log "Creating Python $PYTHON_VERSION venv via uv"
+  log "creating Python $PYTHON_VERSION venv at $RUNTIME_DIR/.venv (internal SSD)"
   uv venv --python "$PYTHON_VERSION" "$RUNTIME_DIR/.venv"
 fi
 
-# 7. Install Python deps
-log "Installing Python packages (raganything[all] + lightrag-hku[api])"
-uv pip install --python "$RUNTIME_DIR/.venv/bin/python" -r "$RUNTIME_DIR/requirements.txt"
+log "installing pinned Python deps"
+uv pip install --python "$RUNTIME_DIR/.venv/bin/python" -r "$RUNTIME_DIR/requirements.lock"
 
-# 8. MinerU model download (first import triggers download to ~/.mineru/)
-log "Triggering MinerU import (models lazy-download on first ingest)"
-"$RUNTIME_DIR/.venv/bin/python" -c "
-import os
-os.environ.setdefault('MINERU_DEVICE', 'mps')
-try:
-    from mineru.cli.common import prepare_env  # noqa: F401
-    print('MinerU import OK')
-except Exception as e:
-    print(f'MinerU import note: {e}')
-" || log "MinerU first-import skipped (will download on first ingest)"
+"$RUNTIME_DIR/scripts/db-init.sh"
 
-# 9. Install skills (delegates to scripts/install-skills.sh — agent-agnostic)
-if [ "$SKIP_SKILLS" -eq 1 ]; then
-  log "Skipping skills install (--skip-skills)"
+log "building docker images"
+if [ "$RF_OS" = "darwin" ]; then
+  find "$REPO_ROOT/infra" -name '._*' -delete
+fi
+MSYS_NO_PATHCONV=1 LIGHTRAG_ENV_FILE="$RUNTIME_DIR/.env" docker compose -f "$REPO_ROOT/infra/docker-compose.yml" --env-file "$RUNTIME_DIR/.env" build
+
+if [ "$SKIP_SKILLS" -eq 1 ] || [ ${#SKILL_ARGS[@]} -eq 0 ]; then
+  # ponytail: no --agent means Claude Code, which loads .claude/skills/ from the repo directly.
+  log "skills stay project-local in .claude/skills/ (pass --agent to copy them elsewhere)"
 else
-  log "Installing skills via scripts/install-skills.sh ${SKILL_ARGS[*]:-(default: claude-code)}"
+  log "installing skills ${SKILL_ARGS[*]}"
   "$REPO_ROOT/scripts/install-skills.sh" "${SKILL_ARGS[@]}"
 fi
-
-# 10. Verify
-log "Verifying lightrag-server installed"
-"$RUNTIME_DIR/.venv/bin/lightrag-server" --help >/dev/null 2>&1 && log "lightrag-server OK" || err "lightrag-server missing"
 
 cat <<EOF
 
 \033[1;32mBootstrap complete.\033[0m
 
-  Repo (source):  $REPO_DIR
-  Runtime:        $RUNTIME_DIR
-  Data:           $DATA_DIR
+  Repo:     $REPO_DIR
+  Runtime:  $RUNTIME_DIR
+  Data:     $REPO_ROOT/data  (pgdata.ext4.img, ollama/, hf/, mineru/, input/, output/, working/, backups/)
 
 Next steps:
-  /lightrag-start                    # boot server
-  /raganything-upload <file>         # ingest multimodal doc
-  /lightrag-query "<question>"       # ask the KG
-  /lightrag-stop                     # free RAM when done
-
+  /lightrag-start
+  /raganything-upload <file>
+  /lightrag-query "<question>"
+  /lightrag-eject   # before unplugging the drive
 EOF

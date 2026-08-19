@@ -1,202 +1,240 @@
-
-<h3 align="center">RagOnFire 🔥📚</h3>
+<h1 align="center">🔥 RagOnFire</h1>
 
 <p align="center">
-  <em>Fully-local, zero-API-cost multimodal RAG for Apple Silicon.</em>
+  <em>Fully-local, zero-API-cost multimodal RAG on portable Postgres storage.</em>
 </p>
 
-<br />
+<p align="center">
+  <img src="https://shieldcn.dev/badge/Python-3.12-3776AB.svg?logo=python&logoColor=fff&variant=default&size=xs" alt="Python 3.12" />
+  <img src="https://shieldcn.dev/badge/Ollama-local-000000.svg?logo=ollama&logoColor=fff&variant=default&size=xs" alt="Ollama" />
+  <img src="https://shieldcn.dev/badge/%F0%9F%95%B8%EF%B8%8F%20LightRAG-1.4.5-FF6B6B.svg?logo=false&logoColor=fff&variant=default&size=xs" alt="LightRAG 1.4.5" />
+  <img src="https://shieldcn.dev/badge/Postgres-16-4169E1.svg?logo=postgresql&logoColor=fff&variant=default&size=xs" alt="Postgres 16" />
+  <img src="https://shieldcn.dev/badge/Docker-compose-2496ED.svg?logo=docker&logoColor=fff&variant=default&size=xs" alt="Docker Compose" />
+</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white" alt="Python" />
-  <img src="https://img.shields.io/badge/Ollama-local-000000?logo=ollama&logoColor=white" alt="Ollama" />
-  <img src="https://img.shields.io/badge/LightRAG-1.4-FF6B6B?logoColor=white" alt="LightRAG" />
-  <img src="https://img.shields.io/badge/MinerU-2-2496ED?logoColor=white" alt="MinerU" />
-  <img src="https://img.shields.io/badge/qwen2.5--vl-7B-1C7CFF?logoColor=white" alt="qwen2.5-vl" />
-  <img src="https://img.shields.io/badge/bge--m3-1024d-7C3AED?logoColor=white" alt="bge-m3" />
-  <img src="https://img.shields.io/badge/MPS-Apple%20Silicon-A2AAAD?logo=apple&logoColor=white" alt="MPS" />
-  <img src="https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
+  <img src="https://shieldcn.dev/badge/status-stable-22C55E.svg?logo=false&statusDot=true&logoColor=fff&variant=default&size=xs" alt="stable" />
+  <img src="https://shieldcn.dev/badge/AI-tooling-7C3AED.svg?logo=ri:RiSparkling2Fill&logoColor=fff&variant=default&size=xs" alt="AI tooling" />
 </p>
 
 ---
-
-## 🔥 About
-
-**RagOnFire** stitches three battle-tested open-source pieces into one knowledge-base on your Mac:
-
-- **[Ollama](ollama/)** — runs an LLM and an embedding model entirely on local GPU (Apple Metal / MPS).
-- **[MinerU](mineru/)** — parses PDFs, Office docs, and images into clean text + tables + equations + cropped images.
-- **[RAG-Anything](rag-anything/)** — orchestrates the multimodal pipeline on top of **LightRAG**'s hybrid (vector + graph) retrieval engine.
-
-Zero API keys. Zero per-token cost. Zero data leaving your machine.
-
-## 🧠 Stack at a glance
-
-```
-                 ┌──────────────────────┐
-                 │  Claude Code skills  │
-                 │  /lightrag-* /rag-*  │
-                 └──────────┬───────────┘
-                            │ (REST + Python)
-                 ┌──────────▼───────────┐
-                 │  LightRAG  :9621     │  hybrid retrieval, KG, FastAPI
-                 └─────┬──────────┬─────┘
-                       │          │
-              ┌────────▼──┐    ┌──▼────────┐
-              │  Ollama   │    │  MinerU   │
-              │  :11434   │    │  (MPS)    │
-              │ qwen2.5vl │    │ parse +   │
-              │ + bge-m3  │    │ OCR + eq  │
-              └───────────┘    └───────────┘
-```
-
-## 📦 Modules
-
-| | Module | Role |
-|-|--------|------|
-| 🦙 | **[ollama/](ollama/)** | LLM + embedding runtime. `qwen2.5vl:7b` (text + vision) and `bge-m3` (1024-dim multilingual embeddings) |
-| ⛏️ | **[mineru/](mineru/)** | Document parser. PDF/DOCX/PPTX/XLSX → text + tables + equations + images |
-| 🧠 | **[rag-anything/](rag-anything/)** | Pipeline + LightRAG server + 7 Claude Code skills (start, stop, upload, status, query, explore, raganything-upload) |
 
 ## 🚀 Quickstart
 
-### Skills only (fast, no runtime install)
+### ♻️ New machine, same drive
 
-If you already have Ollama + the venv set up elsewhere, or just want the Claude Code slash commands:
+The external drive already carries `pgdata.ext4.img`:
+
+```bash
+# 1. Plug the drive in
+# 2. Install Docker      https://docs.docker.com/get-docker/
+# 3. From the repo on the drive:
+./rag-anything/bootstrap.sh
+/lightrag-start
+```
+
+The same vectors, graph, and KV come back up. No re-ingest.
+
+### 🍎 macOS · 🐧 Linux
 
 ```bash
 git clone https://github.com/IsaiaScope/ragonfire.git
 cd ragonfire
 
-# Default: Claude Code (~/.claude/skills/)
-./scripts/install-skills.sh
+./rag-anything/bootstrap.sh                  # Claude Code: skills already live in .claude/skills/
+./rag-anything/bootstrap.sh --agent codex    # also copy skills → ~/.codex/skills
+./rag-anything/bootstrap.sh --skip-skills    # runtime only
 
-# Codex (~/.codex/skills/)
-./scripts/install-skills.sh --agent codex
+/lightrag-start
+/raganything-upload /path/to/paper.pdf
+/lightrag-query "What are the main findings?"
+/lightrag-eject
+```
 
-# Both agents
+### 🪟 Windows native
+
+Stay in Windows tooling with Git Bash.
+
+- Git for Windows — run everything from the **Git Bash** shell
+- Docker Desktop on the **WSL2 backend** (the Hyper-V backend is not supported)
+- Ollama for Windows — `bootstrap.sh` can install it via `winget`
+
+### 🐧 WSL2
+
+Work from a Linux shell inside WSL2.
+
+- Ubuntu 22.04+ or another glibc-based distro
+- Docker Desktop with WSL integration, or native `docker-ce`
+- Ollama via `https://ollama.com/install.sh` — avoid the Windows-side service, both bind port `11434`
+
+Both paths then run the same three commands:
+
+```bash
+git clone https://github.com/IsaiaScope/ragonfire.git
+cd ragonfire
+./rag-anything/bootstrap.sh
+/lightrag-start
+```
+
+> Windows native is simpler if you already use Git Bash. WSL2 is simpler if you already live in a Linux shell.
+
+### 🎛️ Skills only
+
+Skills live in `.claude/skills/`, so Claude Code picks them up whenever its working directory is this repo — no install step. Copy them out only to reach them from another agent or from outside the repo:
+
+```bash
+./scripts/install-skills.sh --agent codex    # → ~/.codex/skills
+./scripts/install-skills.sh                  # → ~/.claude/skills (global, outside-repo use)
 ./scripts/install-skills.sh --agent all
 ```
 
-### Full install (Ollama + models + venv + skills)
+---
 
-```bash
-# 1. Clone
-git clone https://github.com/IsaiaScope/ragonfire.git
-cd ragonfire
+## ✨ Features
 
-# 2. Install everything (Ollama, models, Python venv, MinerU, skills)
-./rag-anything/bootstrap.sh                  # default: skills → Claude Code
-./rag-anything/bootstrap.sh --agent codex    # or skills → Codex
-./rag-anything/bootstrap.sh --agent all      # or both
+Three open-source pieces stitched into one local knowledge base — no API keys, no cloud bills, your data never leaves the machine.
 
-# 3. Start the server (lazy — only when you need it)
-~/rag-anything/scripts/server-start.sh
+- 🧠 **[Ollama](docs/ollama.md)** — runs the LLM and embedding models natively, so they reach the GPU directly.
+- 📄 **[MinerU](docs/mineru.md)** — parses PDFs, Office docs, images, tables, equations, and OCR into structured artifacts.
+- 🔗 **[RAG-Anything](rag-anything/)** — orchestrates multimodal ingest on top of LightRAG's hybrid vector + graph retrieval.
+- 🐘 **Postgres 16 + pgvector + Apache AGE** — one database holds the vectors, the graph, and the KV store.
+- 🔌 **Portable by design** — the Postgres data directory sits in an ext4 loopback image on the external drive, so the drive moves between macOS, Linux, Windows native, and WSL2 without re-ingesting.
 
-# 4. Ingest a multimodal document
-~/rag-anything/.venv/bin/python \
-  ~/rag-anything/scripts/ingest.py \
-  /path/to/paper.pdf
+---
 
-# 5. Query
-curl -s -X POST http://localhost:9621/query \
-  -H "Content-Type: application/json" \
-  -d '{"query": "What are the main findings?", "mode": "hybrid"}'
+## 🧱 Stack At A Glance
 
-# 6. Stop the server (frees ~3-5 GB of RAM)
-~/rag-anything/scripts/server-stop.sh
+```
+Claude / Codex skills
+        │
+        ▼
+LightRAG server container :9622
+        │
+        ├──▶ Postgres container :5433   (pgvector + AGE, ext4 .img on drive)
+        ├──▶ Ollama native :11434       (qwen2.5:7b · qwen2.5vl:7b · bge-m3)
+        └──▶ MinerU native parser       (during ingest)
 ```
 
-## 🎛️ From Claude Code
+**Ingest routing** (`PARSER=auto`):
 
-All operations are exposed as slash commands once the skills are installed under `~/.claude/skills/`:
+| Input | Route |
+|-------|-------|
+| Scanned PDF | MinerU OCR |
+| Digital PDF with figures | Hybrid — MinerU vision + text recovery |
+| Text-only PDF | `pymupdf` fast path |
 
-| Skill | What it does |
-|-------|--------------|
-| `/lightrag-start` | Boot the LightRAG server on `:9621` |
-| `/lightrag-stop` | Shut it down, free RAM |
-| `/lightrag-upload` | Push a text file to the KG (REST) |
-| `/raganything-upload` | Ingest a multimodal PDF/Office doc (MinerU + VLM) |
-| `/lightrag-status` | Doc counts, processing state, top entities |
-| `/lightrag-query` | Ask the KG a question |
-| `/lightrag-explore` | Walk the graph around an entity |
+---
 
-## 📂 Project layout
+## 🛠️ Skills
+
+Every skill is a slash command in Claude Code. Flags and arguments are documented in each skill's own `SKILL.md` under [`.claude/skills/`](.claude/skills/).
+
+**Stack lifecycle**
+
+| | Skill | Does |
+|-|-------|------|
+| ▶️ | `/lightrag-start` | Boot Ollama, Postgres, LightRAG |
+| ⏹️ | `/lightrag-stop` | Stop containers, unload the model |
+| 🩺 | `/lightrag-status` | Health of every layer |
+| ⏏️ | `/lightrag-eject` | Stop, sync, eject the drive |
+| ⬆️ | `/lightrag-upgrade` | Rebuild after a schema pin change |
+
+**Knowledge base**
+
+| | Skill | Does |
+|-|-------|------|
+| 📝 | `/lightrag-upload` | Text document via REST |
+| 📚 | `/raganything-upload` | PDF or Office via MinerU + VLM |
+| ❓ | `/lightrag-query` | Ask the graph a question |
+| 🕸️ | `/lightrag-explore` | Walk the graph around an entity |
+
+**Backups**
+
+| | Skill | Does |
+|-|-------|------|
+| 💾 | `/db-snapshot` | Take a gzip `pg_dump` |
+| ♻️ | `/db-restore` | Restore from a dump |
+| 📋 | `/db-list-snapshots` | List available dumps |
+| 📈 | `/db-grow` | Resize the ext4 image |
+
+---
+
+## 🗂️ Project Layout
 
 ```
 ragonfire/
-├── README.md                       ← you are here
-├── .gitignore                      ← excludes models, venv, storage
-├── ollama/
-│   └── README.md                   ← Ollama config + models
-├── mineru/
-│   └── README.md                   ← MinerU parser config
-└── rag-anything/
-    ├── README.md                   ← detailed deployment guide
-    ├── bootstrap.sh                ← idempotent installer
-    ├── requirements.txt
-    ├── .env.example
-    ├── scripts/
-    │   ├── ingest.py               ← RAG-Anything Python entry
-    │   ├── server-start.sh
-    │   ├── server-stop.sh
-    │   └── server-status.sh
-    └── skills/                     ← copied to ~/.claude/skills/ by bootstrap
-        ├── lightrag-start/
-        ├── lightrag-stop/
-        ├── lightrag-upload/
-        ├── lightrag-status/
-        ├── lightrag-query/
-        ├── lightrag-explore/
-        └── raganything-upload/
+├── .claude/
+│   └── skills/                 # agent skills (project-scoped)
+├── infra/
+│   ├── docker-compose.yml
+│   ├── lightrag-server/
+│   ├── postgres/
+│   └── os/                     # OS detect + per-OS installers
+├── rag-anything/
+│   ├── bootstrap.sh
+│   ├── requirements.txt
+│   └── scripts/
+├── scripts/
+│   └── install-skills.sh
+├── tests/                      # phase1 linux · phase3 windows · phase4 wsl2
+├── docs/
+│   ├── ollama.md
+│   ├── mineru.md
+│   └── superpowers/
+└── data/                       # gitignored, populated at runtime
+    ├── pgdata.ext4.img         # 50G ext4 loopback (Postgres data)
+    ├── hf/  mineru/            # model caches
+    └── input/ output/ working/ backups/
 ```
 
-## 🗄️ Runtime locations (defaults)
+---
 
-All paths are configurable via `~/rag-anything/.env` after bootstrap. The defaults below assume a single root.
+## 📍 Runtime Locations
 
-| What | Default path | Override |
-|------|--------------|----------|
-| Code, venv, scripts | `~/rag-anything/` | `RAGONFIRE_RUNTIME` env (advanced) |
-| KG + vectors | `~/rag-anything/storage/` | `WORKING_DIR` in `.env` |
-| Parsed artifacts | `~/rag-anything/output/` | `OUTPUT_DIR` in `.env` |
-| Batch ingest drop-zone | `~/rag-anything/input/` | `INPUT_DIR` in `.env` |
-| Ollama models | `~/.ollama/models/` | `OLLAMA_MODELS` env |
-| MinerU models | `~/.mineru/` and HF / ModelScope caches | `HF_HOME`, `MODELSCOPE_CACHE` env |
+Every path is configurable through `~/rag-anything/.env` after bootstrap.
 
-> **Tip:** to keep multi-GB models off your boot drive, point `OLLAMA_MODELS`, `HF_HOME`, and `MODELSCOPE_CACHE` at an external SSD. Python venvs need a POSIX filesystem (APFS/HFS+/ext4), so keep `~/rag-anything/.venv` on the internal drive even if data lives elsewhere.
+| | What | Default path |
+|-|------|--------------|
+| 📜 | Runtime scripts + venv | `~/rag-anything/` |
+| 💽 | Data root | `<repo>/data/` |
+| 🐘 | Postgres image | `<repo>/data/pgdata.ext4.img` |
+| 📦 | Parsed artifacts | `<repo>/data/output/` |
+| 📥 | Batch ingest drop-zone | `<repo>/data/input/` |
+| 🗃️ | Backups | `<repo>/data/backups/` |
+| 🧠 | Ollama models | `~/.ollama/models/` |
+| 🤗 | HF / MinerU caches | `<repo>/data/hf/`, `<repo>/data/mineru/` |
 
-## 🧪 Requirements
+> **🧠 Ollama weights live on the internal SSD, not the data drive.** Ollama reloads GGUF weights every time it swaps between the extraction and embedding models mid-ingest. On an exFAT external drive each reload costs seconds and comes to dominate ingest runtime; an internal load is ~0.06s. `bootstrap.sh` sets `OLLAMA_MODELS=~/.ollama/models` automatically.
 
-<p>
-  <img src="https://img.shields.io/badge/macOS-13%2B-000000?logo=apple&logoColor=white" alt="macOS" />
-  <img src="https://img.shields.io/badge/Apple_Silicon-M1%2FM2%2FM3%2FM4-A2AAAD?logo=apple&logoColor=white" alt="Apple Silicon" />
-  <img src="https://img.shields.io/badge/RAM-16GB%2B-2C5BB4?logoColor=white" alt="RAM" />
-  <img src="https://img.shields.io/badge/Disk-~20GB_free-FF9F1C?logoColor=white" alt="Disk" />
-  <img src="https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white" alt="Python" />
-  <img src="https://img.shields.io/badge/uv-package_manager-DE5FE9?logoColor=white" alt="uv" />
-  <img src="https://img.shields.io/badge/Homebrew-required-FBB040?logo=homebrew&logoColor=white" alt="Homebrew" />
-</p>
+---
 
-- **macOS 13+** on Apple Silicon (M1 or newer). MPS is used for MinerU layout and OCR models.
-- **16 GB unified memory** minimum (32 GB comfortable). The qwen2.5-vl 7B Q4 quant fits in ~6 GB; 32B variants need 32 GB+.
-- **~20 GB free disk** for Ollama models (~7 GB), MinerU models (~5 GB), Python venv (~3 GB), and parsed artifacts.
-- **Homebrew** for installing Ollama.
-- **uv** for the Python venv: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+## ✅ Requirements
 
-## 📜 Licenses
+- 🐳 **Docker** — runs Postgres and the LightRAG server. Desktop on macOS and Windows native, Desktop WSL integration or native `docker-ce` on WSL2, Engine on Linux.
+- 🧠 **Ollama** — runs natively on the host. `bootstrap.sh` installs it via Homebrew (macOS), the official script (Linux/WSL2), or `winget` (Windows).
+- ⚡ **GPU** — Apple Silicon or NVIDIA for fast inference. CPU fallback works, but it is slow.
+- 💾 **~20 GB internal SSD** — Docker images and the Python venv. The 50 GB Postgres image, model caches, and artifacts live under `data/` on the external drive.
+- 🔌 **External drive** — exFAT is fine. Postgres data sits inside an ext4 loopback image, which preserves the POSIX semantics it needs.
+- 🐍 **Python 3.12 + uv** — the host venv, installed by `bootstrap.sh`.
 
-RagOnFire integrates third-party open-source software. See each module's README for license attribution:
-- **Ollama** — MIT
-- **MinerU** — AGPL-3.0
-- **LightRAG / RAG-Anything** — MIT
-- **qwen2.5-vl** — Apache-2.0 / Tongyi Qianwen Research
-- **bge-m3** — MIT
+---
 
-This wrapper repo is MIT.
+## 📄 Licenses
+
+RagOnFire integrates third-party open-source software. See each module's README for license attribution.
+
+| Component | License |
+|-----------|---------|
+| Ollama | MIT |
+| MinerU | AGPL-3.0 |
+| LightRAG / RAG-Anything | MIT |
+| qwen2.5-vl | Apache-2.0 / Tongyi Qianwen Research |
+| bge-m3 | MIT |
+
+This wrapper repo is **MIT**.
 
 ---
 
 <p align="center">
-  <sub>Built locally. Queried locally. Never leaves your laptop.</sub>
+  Built local-first — no API keys, no cloud bills. 🔥
 </p>
