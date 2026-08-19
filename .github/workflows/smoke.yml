@@ -1,0 +1,53 @@
+name: smoke
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  smoke:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: phase1-linux
+            os: ubuntu-latest
+            script: tests/phase1-smoke.sh
+            docker_build: true
+            experimental: false
+          - name: phase3-windows-native
+            os: windows-latest
+            script: tests/phase3-windows-smoke.sh
+            docker_build: false
+            experimental: true
+          - name: phase4-wsl2-override
+            os: ubuntu-latest
+            script: tests/phase4-wsl2-smoke.sh
+            docker_build: false
+            experimental: true
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Static checks
+        if: ${{ matrix.name == 'phase1-linux' }}
+        run: |
+          bash -n rag-anything/bootstrap.sh rag-anything/scripts/*.sh rag-anything/scripts/lib/*.sh infra/os/*.sh infra/postgres/entrypoint-loop.sh tests/*.sh
+          python3 -m py_compile rag-anything/scripts/*.py tests/test_*.py
+          python3 tests/test_ragonfire_runtime.py
+          python3 tests/test_ingest_modules.py
+          bash tests/runtime-helper-test.sh
+
+      - name: Build postgres image
+        if: ${{ matrix.docker_build }}
+        run: |
+          docker build -t postgres infra/postgres
+
+      - name: Run smoke script
+        shell: bash
+        run: |
+          chmod +x "${{ matrix.script }}"
+          "${{ matrix.script }}"

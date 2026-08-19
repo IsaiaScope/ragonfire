@@ -1,0 +1,54 @@
+name: ragonfire
+
+services:
+  postgres:
+    build: ./postgres
+    image: ragonfire-postgres:latest
+    container_name: ragonfire-postgres
+    # Privileged: required for `mount -o loop` inside entrypoint-loop.sh.
+    # The loopback mount makes /pgdata-vol the ext4 filesystem inside
+    # ${PGDATA_IMG} on the host drive — so all writes land on the drive,
+    # not in Docker's named volumes (which are VM-internal and non-portable).
+    privileged: true
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DATABASE}
+      PGDATA: /pgdata-vol/pg
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT_EXTERNAL}:5432"
+    volumes:
+      - ${PGDATA_IMG}:/mnt/host/pgdata.ext4.img
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DATABASE}"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [internal]
+
+  lightrag-server:
+    build: ./lightrag-server
+    image: ragonfire-lightrag-server:latest
+    container_name: ragonfire-lightrag
+    ports:
+      - "127.0.0.1:${LIGHTRAG_PORT_EXTERNAL}:${LIGHTRAG_PORT_INTERNAL}"
+    env_file:
+      - ${LIGHTRAG_ENV_FILE:-../rag-anything/.env.example}
+    volumes:
+      - ${HOST_LOGS_DIR}:${LOG_DIR}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${LIGHTRAG_PORT_INTERNAL}/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+    networks: [internal]
+
+networks:
+  internal:
+    driver: bridge

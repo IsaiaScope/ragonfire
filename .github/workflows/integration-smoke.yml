@@ -1,0 +1,48 @@
+name: integration-smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"
+  push:
+    branches: [dev, test, prod]
+    paths:
+      - ".github/workflows/integration-smoke.yml"
+      - "infra/**"
+      - "rag-anything/**"
+      - "tests/fixtures/**"
+      - "tests/phase2-smoke.sh"
+
+jobs:
+  phase2-ingest-query:
+    name: phase2-ingest-query
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install Ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          sudo systemctl stop ollama 2>/dev/null || true
+          OLLAMA_HOST=0.0.0.0:11434 nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for _ in $(seq 1 60); do
+            curl -sf http://localhost:11434/api/tags >/dev/null && exit 0
+            sleep 2
+          done
+          cat /tmp/ollama.log
+          exit 1
+
+      - name: Pull local models
+        run: |
+          ollama pull qwen2.5:3b
+          ollama pull bge-m3
+
+      - name: Run phase2 smoke
+        run: |
+          bash tests/phase2-smoke.sh
