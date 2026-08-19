@@ -79,9 +79,9 @@ The same vectors, graph, and KV come up. No re-ingest.
 git clone https://github.com/IsaiaScope/ragonfire.git
 cd ragonfire
 
-./rag-anything/bootstrap.sh                  # default: skills → Claude Code
-./rag-anything/bootstrap.sh --agent codex    # or skills → Codex
-./rag-anything/bootstrap.sh --agent all      # or both
+./rag-anything/bootstrap.sh                  # Claude Code: skills already live in .claude/skills/
+./rag-anything/bootstrap.sh --agent codex    # also copy skills → ~/.codex/skills
+./rag-anything/bootstrap.sh --skip-skills    # runtime only
 
 /lightrag-start
 /raganything-upload /path/to/paper.pdf
@@ -123,9 +123,13 @@ cd ragonfire
 
 ### 🎛️ Skills only
 
+Skills live in `.claude/skills/`, so Claude Code picks them up automatically when
+its working directory is this repo — no install step. Copy them out only to use
+them from another agent or from outside the repo:
+
 ```bash
-./scripts/install-skills.sh
-./scripts/install-skills.sh --agent codex
+./scripts/install-skills.sh --agent codex    # → ~/.codex/skills
+./scripts/install-skills.sh                  # → ~/.claude/skills (global, outside-repo use)
 ./scripts/install-skills.sh --agent all
 ```
 
@@ -155,6 +159,8 @@ cd ragonfire
 
 ```
 ragonfire/
+├── .claude/
+│   └── skills/                 # agent skills (project-scoped)
 ├── infra/
 │   ├── docker-compose.yml
 │   ├── lightrag-server/
@@ -163,8 +169,7 @@ ragonfire/
 ├── rag-anything/
 │   ├── bootstrap.sh
 │   ├── requirements.txt
-│   ├── scripts/
-│   └── skills/
+│   └── scripts/
 ├── scripts/
 │   └── install-skills.sh
 ├── tests/                      # phase1 linux · phase3 windows · phase4 wsl2
